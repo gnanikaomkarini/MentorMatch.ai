@@ -66,17 +66,17 @@ export default function LoginPage() {
           </CardHeader>
 
           <CardContent>
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-6">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-6 -mt-4">
               <TabsList className="grid w-full grid-cols-2 mb-4">
                 <TabsTrigger value="mentee" className="py-3">
                   <div className="flex flex-col items-center">
-                    <Users className="h-5 w-5 mb-1" />
+                    <Users className="h-4 w-5 mb-1" />
                     <span>Sign in as Mentee</span>
                   </div>
                 </TabsTrigger>
                 <TabsTrigger value="mentor" className="py-3">
                   <div className="flex flex-col items-center">
-                    <GraduationCap className="h-5 w-5 mb-1" />
+                    <GraduationCap className="h-4 w-5 mb-1" />
                     <span>Sign in as Mentor</span>
                   </div>
                 </TabsTrigger>

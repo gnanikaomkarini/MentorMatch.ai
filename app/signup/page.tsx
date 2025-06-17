@@ -81,25 +81,25 @@ export default function SignupPage() {
                   <div className="flex flex-col items-center">
                     <Users className="h-5 w-5 mb-1" />
                     <span>Join as Mentee</span>
-                    <span className="text-xs text-gray-500 dark:text-gray-400">Find mentors & learn</span>
+                    <span className="text-xs text-gray-500 dark:text-gray-400"></span>
                   </div>
                 </TabsTrigger>
                 <TabsTrigger value="mentor" className="py-3">
                   <div className="flex flex-col items-center">
                     <GraduationCap className="h-5 w-5 mb-1" />
                     <span>Join as Mentor</span>
-                    <span className="text-xs text-gray-500 dark:text-gray-400">Share your expertise</span>
+                    <span className="text-xs text-gray-500 dark:text-gray-400"></span>
                   </div>
                 </TabsTrigger>
               </TabsList>
               <TabsContent value="mentee">
                 <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
-                  Create an account to find a mentor and start learning with personalized roadmaps.
+                  
                 </p>
               </TabsContent>
               <TabsContent value="mentor">
                 <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
-                  Create an account to share your expertise and guide mentees on their learning journey.
+                  
                 </p>
               </TabsContent>
             </Tabs>

@@ -28,12 +28,15 @@ export default function MenteeOnboarding() {
 
   const handleNext = () => {
     if (step < totalSteps) {
-      setStep(step + 1)
-    } else {
-      // Submit and redirect to dashboard
-      window.location.href = "/dashboard/mentee"
+    setStep(step + 1);
+    } 
+    else {
+    // Save formData to localStorage (replace with API call in production)
+    localStorage.setItem('menteeProfile', JSON.stringify(formData));
+    // Submit and redirect to dashboard
+    window.location.href = "/dashboard/mentee";
     }
-  }
+  };
 
   const handleBack = () => {
     if (step > 1) {

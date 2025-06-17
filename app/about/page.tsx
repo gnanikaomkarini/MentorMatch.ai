@@ -181,7 +181,7 @@ export default function AboutPage() {
             <Button size="lg" variant="secondary" className="bg-white text-purple-600 hover:bg-gray-100">
               <Link href="/signup?role=mentee">Join as Mentee</Link>
             </Button>
-            <Button size="lg" variant="outline" className="border-white text-white hover:bg-purple-700">
+            <Button size="lg" variant="secondary" className="bg-white text-purple-600 hover:bg-gray-100">
               <Link href="/signup?role=mentor">Become a Mentor</Link>
             </Button>
           </div>

@@ -1,8 +1,8 @@
 "use client"
 
 import type React from "react"
-
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { Button } from "@/components/ui/button"
@@ -20,6 +20,7 @@ interface DashboardLayoutProps {
 export default function DashboardLayout({ children, userRole }: DashboardLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const pathname = usePathname()
+  const router = useRouter()
 
   const menteeNavItems = [
     { name: "Dashboard", href: "/dashboard/mentee", icon: <Home className="h-5 w-5" /> },
@@ -27,7 +28,7 @@ export default function DashboardLayout({ children, userRole }: DashboardLayoutP
     { name: "Chat", href: "/chat", icon: <MessageSquare className="h-5 w-5" /> },
     { name: "Schedule", href: "/schedule", icon: <Calendar className="h-5 w-5" /> },
     { name: "Interview", href: "/interview", icon: <Video className="h-5 w-5" /> },
-    { name: "Profile", href: "/profile", icon: <User className="h-5 w-5" /> },
+    { name: "Profile", href: "/profile/mentee", icon: <User className="h-5 w-5" /> },
   ]
 
   const mentorNavItems = [
@@ -36,13 +37,21 @@ export default function DashboardLayout({ children, userRole }: DashboardLayoutP
     { name: "Chat", href: "/chat", icon: <MessageSquare className="h-5 w-5" /> },
     { name: "Schedule", href: "/schedule", icon: <Calendar className="h-5 w-5" /> },
     { name: "Resources", href: "/resources", icon: <BarChart className="h-5 w-5" /> },
-    { name: "Profile", href: "/profile", icon: <User className="h-5 w-5" /> },
+    { name: "Profile", href: "/profile/mentor", icon: <User className="h-5 w-5" /> },
   ]
 
   const navItems = userRole === "mentee" ? menteeNavItems : mentorNavItems
-
   const userName = userRole === "mentee" ? "Sarah Kim" : "Dr. Alex Johnson"
   const userEmail = userRole === "mentee" ? "sarah@example.com" : "alex@example.com"
+
+  // Handle logout functionality
+  const handleLogout = () => {
+    // Clear localStorage (adjust keys based on your app's usage)
+    localStorage.removeItem("menteeProfile")
+    localStorage.removeItem("mentorProfile")
+    // Redirect to login or home page
+    router.push("/login") // Adjust to "/" if no login page exists
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -72,7 +81,6 @@ export default function DashboardLayout({ children, userRole }: DashboardLayoutP
             <X className="h-5 w-5" />
           </button>
         </div>
-
         <div className="flex flex-col h-full">
           <div className="flex-1 overflow-y-auto py-4 px-3 space-y-1">
             {navItems.map((item) => (
@@ -92,7 +100,6 @@ export default function DashboardLayout({ children, userRole }: DashboardLayoutP
               </Link>
             ))}
           </div>
-
           <div className="p-4 border-t border-gray-200 dark:border-gray-800">
             <div className="flex items-center">
               <Avatar className="h-8 w-8 mr-3">
@@ -103,7 +110,7 @@ export default function DashboardLayout({ children, userRole }: DashboardLayoutP
                 <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{userName}</p>
                 <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{userEmail}</p>
               </div>
-              <Button variant="ghost" size="icon">
+              <Button variant="ghost" size="icon" onClick={handleLogout}>
                 <LogOut className="h-5 w-5" />
               </Button>
             </div>
@@ -118,7 +125,6 @@ export default function DashboardLayout({ children, userRole }: DashboardLayoutP
             <span className="text-xl font-bold text-purple-600 dark:text-purple-400">MentorMatch.ai</span>
           </Link>
         </div>
-
         <div className="flex flex-col h-full">
           <div className="flex-1 overflow-y-auto py-4 px-3 space-y-1">
             {navItems.map((item) => (
@@ -137,7 +143,6 @@ export default function DashboardLayout({ children, userRole }: DashboardLayoutP
               </Link>
             ))}
           </div>
-
           <div className="p-4 border-t border-gray-200 dark:border-gray-800">
             <div className="flex items-center">
               <Avatar className="h-8 w-8 mr-3">
@@ -148,7 +153,7 @@ export default function DashboardLayout({ children, userRole }: DashboardLayoutP
                 <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{userName}</p>
                 <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{userEmail}</p>
               </div>
-              <Button variant="ghost" size="icon">
+              <Button variant="ghost" size="icon" onClick={handleLogout}>
                 <LogOut className="h-5 w-5" />
               </Button>
             </div>
@@ -167,7 +172,6 @@ export default function DashboardLayout({ children, userRole }: DashboardLayoutP
             >
               <Menu className="h-6 w-6" />
             </button>
-
             <div className="flex-1 md:flex md:items-center md:justify-end">
               <div className="flex items-center space-x-4">
                 <NotificationDropdown />
@@ -179,7 +183,6 @@ export default function DashboardLayout({ children, userRole }: DashboardLayoutP
             </div>
           </div>
         </div>
-
         <main className="py-6 px-4 sm:px-6 md:px-8">{children}</main>
       </div>
     </div>

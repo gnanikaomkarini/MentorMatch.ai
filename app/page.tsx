@@ -28,7 +28,7 @@ export default function LandingPage() {
                     Join as Mentee <ArrowRight size={16} />
                   </Link>
                 </Button>
-                <Button size="lg" variant="outline">
+                <Button size="lg" className="bg-purple-600 hover:bg-purple-700">
                   <Link href="/signup?role=mentor" className="flex items-center gap-2">
                     Become a Mentor <ArrowRight size={16} />
                   </Link>
@@ -145,7 +145,7 @@ export default function LandingPage() {
             <Button size="lg" variant="secondary" className="bg-white text-purple-600 hover:bg-gray-100">
               <Link href="/signup?role=mentee">Join as Mentee</Link>
             </Button>
-            <Button size="lg" variant="outline" className="border-white text-white hover:bg-purple-700">
+            <Button size="lg" variant="secondary" className="bg-white text-purple-600 hover:bg-gray-100">
               <Link href="/signup?role=mentor">Become a Mentor</Link>
             </Button>
           </div>
