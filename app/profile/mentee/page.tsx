@@ -100,8 +100,9 @@ export default function MenteeProfilePage() {
         <Card className="w-full">
           <CardHeader className="flex flex-col sm:flex-row items-center sm:items-start gap-4">
             <Avatar className="h-24 w-24">
-              <AvatarImage src="/placeholder.svg" alt={userName} />
-              <AvatarFallback>{userName.charAt(0)}</AvatarFallback>
+              <AvatarFallback className="bg-gray-200 dark:bg-gray-700">
+                <User className="h-12 w-12 text-gray-600 dark:text-gray-300" />
+              </AvatarFallback>
             </Avatar>
             <div className="text-center sm:text-left">
               <CardTitle className="text-2xl font-bold">{userName}</CardTitle>
