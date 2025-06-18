@@ -7,7 +7,7 @@ load_dotenv()
 
 # Get MongoDB connection string from environment variables
 MONGO_URI = os.environ.get('MONGO_URI', 'mongodb://localhost:27017')
-DB_NAME = os.environ.get('DB_NAME', 'mentor_match')
+DB_NAME = os.environ.get('DB_NAME', 'MentorMatch')
 
 # Create MongoDB client
 client = MongoClient(MONGO_URI)
