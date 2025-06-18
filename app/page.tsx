@@ -11,18 +11,17 @@ export default function LandingPage() {
       <Navbar />
 
       {/* Hero Section */}
-      <section className="bg-gradient-to-b from-white to-gray-50 dark:from-gray-900 dark:to-gray-950 py-20">
+      <section className="bg-gradient-to-b from-white to-gray-50 dark:from-gray-900 dark:to-gray-950 py-48">
         <div className="container mx-auto px-4 md:px-6">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-8">
-            <div className="flex-1 space-y-6">
-              <h1 className="text-4xl md:text-6xl font-bold tracking-tight">
+          <div className="flex flex-col items-center justify-center gap-12 text-center">
+            <div className="space-y-8">
+              <h1 className="text-5xl md:text-7xl font-bold tracking-tight">
                 Find Your Perfect Mentor with <span className="text-purple-600 dark:text-purple-400">AI</span>
               </h1>
-              <p className="text-xl text-gray-600 dark:text-gray-300 max-w-xl">
-                MentorMatch.ai uses artificial intelligence to connect you with mentors who match your goals, learning
-                style, and schedule.
+              <p className="text-2xl text-gray-600 dark:text-gray-300 max-w-4xl text-center mx-auto leading-relaxed">
+                MentorMatch.ai uses artificial intelligence to connect you with mentors who match your goals, learning style, and schedule.
               </p>
-              <div className="flex flex-col sm:flex-row gap-4">
+              <div className="flex flex-col sm:flex-row gap-6 justify-center">
                 <Button size="lg" className="bg-purple-600 hover:bg-purple-700">
                   <Link href="/signup?role=mentee" className="flex items-center gap-2">
                     Join as Mentee <ArrowRight size={16} />
@@ -34,13 +33,6 @@ export default function LandingPage() {
                   </Link>
                 </Button>
               </div>
-            </div>
-            <div className="flex-1">
-              <img
-                src="/placeholder.svg?height=400&width=500"
-                alt="AI Mentorship Illustration"
-                className="rounded-lg shadow-xl"
-              />
             </div>
           </div>
         </div>

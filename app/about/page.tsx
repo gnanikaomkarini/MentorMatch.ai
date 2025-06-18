@@ -1,5 +1,7 @@
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { User } from "lucide-react"
 import Navbar from "@/components/navbar"
 import Footer from "@/components/footer"
 
@@ -9,30 +11,23 @@ export default function AboutPage() {
       <Navbar />
 
       {/* Hero Section */}
-      <section className="bg-white dark:bg-gray-900 py-20">
+      <section className="bg-white dark:bg-gray-900 py-40">
         <div className="container mx-auto px-4 md:px-6">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-8">
-            <div className="flex-1 space-y-6">
-              <h1 className="text-4xl md:text-6xl font-bold tracking-tight">
+          <div className="flex flex-col items-center justify-center gap-8 text-center">
+            <div className="space-y-12">
+              <h1 className="text-5xl md:text-7xl font-bold tracking-tight">
                 About <span className="text-purple-600 dark:text-purple-400">MentorMatch.ai</span>
               </h1>
-              <p className="text-xl text-gray-600 dark:text-gray-300 max-w-xl">
+              <p className="text-2xl text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
                 We're on a mission to revolutionize skill development through personalized mentorship and AI-powered
                 learning.
               </p>
-            </div>
-            <div className="flex-1">
-              <img
-                src="/placeholder.svg?height=400&width=500"
-                alt="Team Collaboration"
-                className="rounded-lg shadow-xl"
-              />
             </div>
           </div>
         </div>
       </section>
 
-      {/* Mission Section */}
+      {/* Mission Section (Unchanged) */}
       <section className="py-20 bg-gray-50 dark:bg-gray-950">
         <div className="container mx-auto px-4 md:px-6">
           <div className="max-w-3xl mx-auto text-center space-y-6">
@@ -53,34 +48,39 @@ export default function AboutPage() {
         </div>
       </section>
 
-      {/* Story Section */}
+      {/* Story Section (Timeline) */}
       <section className="py-20 bg-white dark:bg-gray-900">
         <div className="container mx-auto px-4 md:px-6">
           <div className="max-w-4xl mx-auto">
-            <h2 className="text-3xl font-bold mb-8 text-center">Our Story</h2>
-            <div className="space-y-12">
-              <div className="flex flex-col md:flex-row gap-8 items-center">
-                <div className="md:w-1/3">
-                  <img src="/placeholder.svg?height=200&width=200" alt="Founding" className="rounded-lg shadow-md" />
-                </div>
-                <div className="md:w-2/3 space-y-4">
+            <h2 className="text-3xl font-bold mb-12 text-center">Our Story</h2>
+            <div className="relative space-y-12">
+              {/* Timeline Line */}
+              <div className="absolute left-1/2 transform -translate-x-1/2 h-full w-1 bg-purple-600 dark:bg-purple-400"></div>
+
+              {/* Milestone 1: The Beginning */}
+              <div className="relative flex flex-col md:flex-row items-center gap-6">
+                <div className="md:w-1/2 text-right pr-8">
                   <h3 className="text-xl font-semibold">The Beginning</h3>
-                  <p className="text-gray-600 dark:text-gray-300">
+                  <p className="text-sm text-gray-500 dark:text-gray-400">2024</p>
+                  <p className="text-gray-600 dark:text-gray-300 mt-2">
                     MentorMatch.ai was founded in 2024 by a team of educators, technologists, and industry experts who
                     recognized a gap in traditional learning models. They saw that while online courses provided
                     content, learners often lacked the guidance and accountability that comes from personalized
                     mentorship.
                   </p>
                 </div>
+                <div className="absolute left-1/2 transform -translate-x-1/2 w-4 h-4 bg-purple-600 dark:bg-purple-400 rounded-full"></div>
+                <div className="md:w-1/2"></div>
               </div>
 
-              <div className="flex flex-col md:flex-row gap-8 items-center">
-                <div className="md:w-1/3 md:order-2">
-                  <img src="/placeholder.svg?height=200&width=200" alt="Development" className="rounded-lg shadow-md" />
-                </div>
-                <div className="md:w-2/3 md:order-1 space-y-4">
+              {/* Milestone 2: The Innovation */}
+              <div className="relative flex flex-col md:flex-row items-center gap-6">
+                <div className="md:w-1/2"></div>
+                <div className="absolute left-1/2 transform -translate-x-1/2 w-4 h-4 bg-purple-600 dark:bg-purple-400 rounded-full"></div>
+                <div className="md:w-1/2 text-left pl-8">
                   <h3 className="text-xl font-semibold">The Innovation</h3>
-                  <p className="text-gray-600 dark:text-gray-300">
+                  <p className="text-sm text-gray-500 dark:text-gray-400">2024</p>
+                  <p className="text-gray-600 dark:text-gray-300 mt-2">
                     By integrating AI with human mentorship, we created a platform that could analyze learning patterns,
                     generate personalized roadmaps, and provide continuous feedback while maintaining the irreplaceable
                     human connection of mentor-mentee relationships.
@@ -88,19 +88,20 @@ export default function AboutPage() {
                 </div>
               </div>
 
-              <div className="flex flex-col md:flex-row gap-8 items-center">
-                <div className="md:w-1/3">
-                  <img src="/placeholder.svg?height=200&width=200" alt="Growth" className="rounded-lg shadow-md" />
-                </div>
-                <div className="md:w-2/3 space-y-4">
+              {/* Milestone 3: Today */}
+              <div className="relative flex flex-col md:flex-row items-center gap-6">
+                <div className="md:w-1/2 text-right pr-8">
                   <h3 className="text-xl font-semibold">Today</h3>
-                  <p className="text-gray-600 dark:text-gray-300">
+                  <p className="text-sm text-gray-500 dark:text-gray-400">2025</p>
+                  <p className="text-gray-600 dark:text-gray-300 mt-2">
                     Today, MentorMatch.ai serves thousands of learners across the globe, connecting them with expert
                     mentors in fields ranging from software development to data science, design, and business. Our
                     AI-powered platform continues to evolve, learning from each mentorship relationship to improve the
                     experience for everyone.
                   </p>
                 </div>
+                <div className="absolute left-1/2 transform -translate-x-1/2 w-4 h-4 bg-purple-600 dark:bg-purple-400 rounded-full"></div>
+                <div className="md:w-1/2"></div>
               </div>
             </div>
           </div>
@@ -140,7 +141,7 @@ export default function AboutPage() {
         </div>
       </section>
 
-      {/* Impact Section */}
+      {/* Impact Section (Unchanged) */}
       <section className="py-20 bg-white dark:bg-gray-900">
         <div className="container mx-auto px-4 md:px-6">
           <h2 className="text-3xl font-bold mb-12 text-center">Our Impact</h2>
@@ -170,7 +171,7 @@ export default function AboutPage() {
         </div>
       </section>
 
-      {/* CTA Section */}
+      {/* CTA Section (Unchanged) */}
       <section className="py-20 bg-purple-600 text-white">
         <div className="container mx-auto px-4 md:px-6 text-center">
           <h2 className="text-3xl font-bold mb-6">Join Our Community</h2>
@@ -206,7 +207,11 @@ function TeamMember({
 }) {
   return (
     <div className="text-center">
-      <img src={image || "/placeholder.svg"} alt={name} className="w-40 h-40 rounded-full mx-auto mb-4 object-cover" />
+      <Avatar className="w-40 h-40 rounded-full mx-auto mb-4">
+        <AvatarFallback className="bg-gray-200 dark:bg-gray-700">
+          <User className="h-16 w-16 text-gray-600 dark:text-gray-300" />
+        </AvatarFallback>
+      </Avatar>
       <h3 className="text-xl font-semibold">{name}</h3>
       <p className="text-purple-600 dark:text-purple-400">{role}</p>
       <p className="text-gray-600 dark:text-gray-300 mt-2">{bio}</p>
