@@ -5,7 +5,7 @@ import json
 import requests
 from dotenv import load_dotenv
 from langchain_core.messages import HumanMessage
-from gemini import GeminiLLM 
+from utils.gemini import GeminiLLM 
 
 load_dotenv()
 llm = GeminiLLM(api_key=os.getenv("GEMINI_API_KEY"))

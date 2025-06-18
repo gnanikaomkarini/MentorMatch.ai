@@ -5,41 +5,47 @@ from bson.objectid import ObjectId
 from database.db import ai_learning_data
 from middleware.auth_middleware import token_required
 from services.ai_service import match_mentor_mentee, generate_roadmap, generate_interview_questions
+from models.user import UserModel
 
 ai_bp = Blueprint('ai', __name__)
 
 @ai_bp.route('/match', methods=['POST'])
 @token_required
 def match_mentors(current_user):
-    data = request.get_json()
+    # data = request.get_json()
+    user_id = current_user['_id']
+    user = UserModel.get_user_by_id(user_id)
+    if not user:
+        return None
+
+    profile = user.get('profile', {})
+
+    mentee_skills = profile.get('goals', []) 
+    mentee_experience = profile.get('experience_level', '')
     
-    mentee_skills = data.get('skills', [])
-    mentee_languages = data.get('languages', [])
-    mentee_experience = data.get('experience_level', 'beginner')
-    
+
     if not mentee_skills:
-        return jsonify({'message': 'Skills are required'}), 400
+        return jsonify({'message': 'Goals are required'}), 400
     
     try:
         # Match mentors using AI
-        matches = match_mentor_mentee(mentee_skills, mentee_languages, mentee_experience)
+        match = match_mentor_mentee(mentee_skills, mentee_experience)
         
-        # Log the matching data for AI learning
-        learning_data = {
-            'type': 'mentor_matching',
-            'mentee_id': str(current_user['_id']),
-            'mentee_skills': mentee_skills,
-            'mentee_languages': mentee_languages,
-            'mentee_experience': mentee_experience,
-            'matches': matches,
-            'timestamp': datetime.datetime.utcnow()
-        }
+        # # Log the matching data for AI learning
+        # learning_data = {
+        #     'type': 'mentor_matching',
+        #     'mentee_id': str(current_user['_id']),
+        #     'mentee_skills': mentee_skills,
+        #     'mentee_experience': mentee_experience,
+        #     'matches': matches,
+        #     'timestamp': datetime.datetime.utcnow()
+        # }
         
-        ai_learning_data.insert_one(learning_data)
+        # ai_learning_data.insert_one(learning_data)
         
         return jsonify({
             'message': 'Mentor matching successful',
-            'matches': matches
+            'matches': match
         }), 200
     except Exception as e:
         return jsonify({'message': f'Error matching mentors: {str(e)}'}), 500

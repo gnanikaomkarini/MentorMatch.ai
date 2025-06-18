@@ -74,6 +74,12 @@ class UserModel:
     def delete_user(user_id):
         """Delete user"""
         return users_collection.delete_one({'_id': ObjectId(user_id)})
+    
+    @staticmethod
+    def get_all_mentors():
+        """Get all users with role 'mentor'"""
+        return list(users_collection.find({'role': 'mentor'}))
+
 
 # Create indexes for better performance
 users_collection.create_index('email', unique=True)
