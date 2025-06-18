@@ -1,27 +1,71 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
-# dependencies
-/node_modules
+# Environment variables
+.env*
+!.env.example # if you have an example env file, don't ignore it
+backend/agentic/.env
 
-# next.js
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/  # Python build artifacts; if your frontend also uses 'build', specify path e.g. frontend/build
+
+# Virtual environments
+venv/
+.venv/
+env/
+ENV/
+pip-wheel-metadata/
+
+# Dependencies
+frontend/node_modules
+node_modules/ # If node_modules can also be at the root for other tools
+
+# Next.js
+frontend/.next/
+frontend/out/
 /.next/
 /out/
 
-# production
-/build
+# Production build
+frontend/build 
 
-# debug
+# Debug logs
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
+frontend/.pnpm-debug.log*
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files
-.env*
-
 # vercel
 .vercel
 
-# typescript
+# TypeScript
 *.tsbuildinfo
-next-env.d.ts
+frontend/next-env.d.ts
+
+# IDE / Editor specific
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Log files
+*.log
+logs/
