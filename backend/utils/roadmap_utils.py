@@ -26,7 +26,7 @@ Respond ONLY with a valid JSON list:
   }}
 ]
 """
-    response = llm.invoke([HumanMessage(content=prompt)])
+    response = llm.invoke([{"role": "user", "content": prompt}])
     content = response.content.strip()
 
     match = re.search(r"```(?:json)?\s*(\[.*?\])\s*```", content, re.DOTALL)
@@ -65,10 +65,9 @@ def search_resources(query: str) -> list:
         })
     return resources[:2]
 
-def generate_roadmap(topic) -> dict:
+def create_roadmap(topic) -> dict:
     llm = GeminiLLM(api_key=os.getenv("GEMINI_API_KEY"))
     modules = get_modules_with_subtopics(topic, llm)
-
     enriched_modules = []
     for mod in modules:
         enriched_subtopics = []
@@ -89,26 +88,26 @@ def generate_roadmap(topic) -> dict:
             }
         })
 
-    roadmap = {
-        "_id": "r001",
-        "menteeId": "u123",
-        "goal": topic,
-        "status": "in-progress",
-        "durationWeeks": 8,
-        "approvalStatus": {
-            "mentorId": "u456",
-            "status": "pending",
-            "comments": ""
-        },
-        "interviewTrigger": {
-            "type": "progress_based",
-            "triggerPoint": "50%"
-        },
-        "modules": enriched_modules
-    }
+    # roadmap = {
+    #     "_id": "r001",
+    #     "menteeId": "u123",
+    #     "goal": topic,
+    #     "status": "in-progress",
+    #     "durationWeeks": 8,
+    #     "approvalStatus": {
+    #         "mentorId": "u456",
+    #         "status": "pending",
+    #         "comments": ""
+    #     },
+    #     "interviewTrigger": {
+    #         "type": "progress_based",
+    #         "triggerPoint": "50%"
+    #     },
+    #     "modules": enriched_modules
+    # }
 
-    print(json.dumps(roadmap, indent=2))
-    return roadmap
+    # print(json.dumps(roadmap, indent=2))
+    return enriched_modules
 
-if __name__ == "__main__":
-    generate_roadmap("Generative AI", llm)
+# if __name__ == "__main__":
+#     generate_roadmap("Generative AI")

@@ -1,13 +1,7 @@
-from pymongo import MongoClient
 from bson.objectid import ObjectId
 from werkzeug.security import generate_password_hash, check_password_hash
-import os
 from datetime import datetime
-
-# MongoDB connection
-client = MongoClient(os.environ.get('MONGO_URI', 'mongodb://localhost:27017'))
-db = client[os.environ.get('DB_NAME', 'mentor_match')]
-users_collection = db.users
+from database.db import users
 
 class UserModel:
     @staticmethod
@@ -40,24 +34,24 @@ class UserModel:
                 'experience_level': 'beginner'
             })
 
-        result = users_collection.insert_one(user_data)
-        return users_collection.find_one({'_id': result.inserted_id})
+        result = users.insert_one(user_data)
+        return users.find_one({'_id': result.inserted_id})
 
     @staticmethod
     def get_user_by_email(email):
         """Get user by email"""
-        return users_collection.find_one({'email': email})
+        return users.find_one({'email': email})
 
     @staticmethod
     def get_user_by_email_with_auth(email):
         """Get user by email including password hash"""
-        return users_collection.find_one({'email': email})
+        return users.find_one({'email': email})
 
     @staticmethod
     def get_user_by_id(user_id):
         """Get user by ID"""
         try:
-            return users_collection.find_one({'_id': ObjectId(user_id)})
+            return users.find_one({'_id': ObjectId(user_id)})
         except:
             return None
 
@@ -65,7 +59,7 @@ class UserModel:
     def update_user(user_id, update_data):
         """Update user data"""
         update_data['updated_at'] = datetime.utcnow()
-        return users_collection.update_one(
+        return users.update_one(
             {'_id': ObjectId(user_id)},
             {'$set': update_data}
         )
@@ -73,32 +67,32 @@ class UserModel:
     @staticmethod
     def delete_user(user_id):
         """Delete user"""
-        return users_collection.delete_one({'_id': ObjectId(user_id)})
+        return users.delete_one({'_id': ObjectId(user_id)})
     
     @staticmethod
     def get_all_mentors():
         """Get all users with role 'mentor'"""
-        return list(users_collection.find({'role': 'mentor'}))
+        return list(users.find({'role': 'mentor'}))
     
     @staticmethod
     def link_mentor_and_mentee(mentor_id: str, mentee_id: str):
         """Add a mentee to a mentor's list and a mentor to a mentee's list"""
         try:
-            mentor = users_collection.find_one({'_id': ObjectId(mentor_id), 'role': 'mentor'})
-            mentee = users_collection.find_one({'_id': ObjectId(mentee_id), 'role': 'mentee'})
+            mentor = users.find_one({'_id': ObjectId(mentor_id), 'role': 'mentor'})
+            mentee = users.find_one({'_id': ObjectId(mentee_id), 'role': 'mentee'})
 
             if not mentor or not mentee:
                 print("Invalid mentor or mentee ID")
                 return False
 
             # Update mentor: add mentee_id to `mentees` if not already present
-            users_collection.update_one(
+            users.update_one(
                 {'_id': ObjectId(mentor_id)},
                 {'$addToSet': {'mentees': ObjectId(mentee_id)}, '$set': {'updated_at': datetime.utcnow()}}
             )
 
             # Update mentee: add mentor_id to `mentors` if not already present
-            users_collection.update_one(
+            users.update_one(
                 {'_id': ObjectId(mentee_id)},
                 {'$addToSet': {'mentors': ObjectId(mentor_id)}, '$set': {'updated_at': datetime.utcnow()}}
             )
@@ -112,5 +106,6 @@ class UserModel:
 
 
 # Create indexes for better performance
-users_collection.create_index('email', unique=True)
-users_collection.create_index('username', unique=True)
+# Indexes are now created in database/db.py
+# users.create_index('email', unique=True)
+# users.create_index('username', unique=True)

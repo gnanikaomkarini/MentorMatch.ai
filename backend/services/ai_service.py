@@ -5,7 +5,7 @@ from models.user import UserModel
 import json
 import re
 from utils.gemini import GeminiLLM
-
+from utils.roadmap_utils import create_roadmap
 load_dotenv()
 
 
@@ -66,88 +66,8 @@ def match_mentor_mentee(mentee_skills: List[str], mentee_experience: str) -> Opt
 
     
 
-def generate_roadmap(skill, experience_level):
-    """
-    Generate a learning roadmap using AI.
-    
-    Args:
-        skill (str): Skill to learn
-        experience_level (str): Experience level of the learner
-        
-    Returns:
-        dict: Roadmap with modules and resources
-    """
-    response = openai.ChatCompletion.create(
-        model="gpt-4",
-        messages=[
-            {"role": "system", "content": "You are an AI roadmap generator. Your task is to create a comprehensive learning roadmap for a specific skill based on the learner's experience level."},
-            {"role": "user", "content": f"Generate a learning roadmap for {skill} at {experience_level} level. Include modules with titles, descriptions, resources, and estimated completion times. Format as JSON."}
-        ]
-    )
-    
-    # Parse the response and return the roadmap
-    try:
-        import json
-        import re
-        
-        content = response.choices[0].message.content
-        # Extract JSON from the response
-        json_match = re.search(r'```json\n(.*?)\n```', content, re.DOTALL)
-        if json_match:
-            json_str = json_match.group(1)
-        else:
-            # Try to find JSON without code blocks
-            start_idx = content.find('{')
-            end_idx = content.rfind('}') + 1
-            json_str = content[start_idx:end_idx]
-            
-        roadmap = json.loads(json_str)
-        
-        # Ensure each module has a completed flag
-        for module in roadmap.get('modules', []):
-            module['completed'] = False
-            module['completed_at'] = None
-            module['interview_id'] = None
-            module['interview_completed'] = False
-            module['interview_completed_at'] = None
-            
-        return roadmap
-    except:
-        # Fallback to a simple response if parsing fails
-        return {
-            "title": f"Learning {skill} - {experience_level.capitalize()} Level",
-            "description": f"A comprehensive roadmap to learn {skill} for {experience_level} level learners.",
-            "modules": [
-                {
-                    "title": "Getting Started with " + skill,
-                    "description": "Introduction to the basics of " + skill,
-                    "resources": [
-                        {"type": "article", "title": "Introduction to " + skill, "url": "#"},
-                        {"type": "video", "title": skill + " for Beginners", "url": "#"}
-                    ],
-                    "estimated_hours": 5,
-                    "completed": False,
-                    "completed_at": None,
-                    "interview_id": None,
-                    "interview_completed": False,
-                    "interview_completed_at": None
-                },
-                {
-                    "title": "Intermediate " + skill,
-                    "description": "Dive deeper into " + skill,
-                    "resources": [
-                        {"type": "course", "title": "Intermediate " + skill, "url": "#"},
-                        {"type": "project", "title": "Build a Simple " + skill + " Project", "url": "#"}
-                    ],
-                    "estimated_hours": 10,
-                    "completed": False,
-                    "completed_at": None,
-                    "interview_id": None,
-                    "interview_completed": False,
-                    "interview_completed_at": None
-                }
-            ]
-        }
+def generate_roadmap(skill):
+    return create_roadmap(skill)
 
 def generate_interview_questions(skill, level, transcript=None, module=None):
     """

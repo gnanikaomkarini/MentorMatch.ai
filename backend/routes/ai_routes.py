@@ -6,6 +6,7 @@ from database.db import ai_learning_data
 from middleware.auth_middleware import token_required
 from services.ai_service import match_mentor_mentee, generate_roadmap, generate_interview_questions
 from models.user import UserModel
+from models.roadmap import RoadmapModel
 
 ai_bp = Blueprint('ai', __name__)
 
@@ -38,34 +39,51 @@ def match_mentors():
 
 @ai_bp.route('/roadmap', methods=['POST'])
 @token_required
-def create_roadmap(current_user):
+def create_roadmap():
     data = request.get_json()
+    current_user = g.current_user
+
+    goal = data.get('goal')
+    mentee_id = data.get('mentee_id')
     
-    skill = data.get('skill')
-    experience_level = data.get('experience_level', 'beginner')
-    
-    if not skill:
-        return jsonify({'message': 'Skill is required'}), 400
+    if not goal:
+        return jsonify({'message': 'Goal is required'}), 400
+    if not mentee_id:
+        return jsonify({'message': 'Mentee ID is required'}), 400
     
     try:
-        # Generate roadmap using AI
-        roadmap = generate_roadmap(skill, experience_level)
-        
-        # Log the roadmap data for AI learning
-        learning_data = {
-            'type': 'roadmap_generation',
-            'user_id': str(current_user['_id']),
-            'skill': skill,
-            'experience_level': experience_level,
-            'roadmap': roadmap,
-            'timestamp': datetime.datetime.utcnow()
+        modules_content = generate_roadmap(goal) 
+        db_roadmap = RoadmapModel.create_roadmap(
+            mentee_id=mentee_id, 
+            mentor_id=str(current_user.get('_id')), 
+            topic=goal,
+            duration_weeks=8, 
+            modules=modules_content
+        )
+
+        if not db_roadmap:
+            return jsonify({'message': 'Failed to create roadmap in database'}), 500
+
+        serialized_roadmap = {
+            "id": str(db_roadmap["_id"]), 
+            "menteeId": str(db_roadmap["menteeId"]),
+            "goal": db_roadmap["goal"],
+            "status": db_roadmap["status"],
+            "durationWeeks": db_roadmap["durationWeeks"],
+            "approvalStatus": {
+                "mentorId": str(db_roadmap["approvalStatus"]["mentorId"]),
+                "status": db_roadmap["approvalStatus"]["status"],
+                "comments": db_roadmap["approvalStatus"]["comments"]
+            },
+            "interviewTrigger": db_roadmap["interviewTrigger"],
+            "modules": db_roadmap["modules"], 
+            "created_at": db_roadmap["created_at"].isoformat(),
+            "updated_at": db_roadmap["updated_at"].isoformat()
         }
-        
-        ai_learning_data.insert_one(learning_data)
         
         return jsonify({
             'message': 'Roadmap generated successfully',
-            'roadmap': roadmap
+            'roadmap': serialized_roadmap 
         }), 200
     except Exception as e:
         return jsonify({'message': f'Error generating roadmap: {str(e)}'}), 500
