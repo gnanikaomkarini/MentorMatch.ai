@@ -12,40 +12,25 @@ ai_bp = Blueprint('ai', __name__)
 @ai_bp.route('/match', methods=['POST'])
 @token_required
 def match_mentors(current_user):
-    # data = request.get_json()
-    user_id = current_user['_id']
-    user = UserModel.get_user_by_id(user_id)
-    if not user:
-        return None
+    if not current_user:
+        return jsonify({'error': 'Authenticated user not found'}), 401
 
-    profile = user.get('profile', {})
+    profile = current_user.get('profile', {})
 
     mentee_skills = profile.get('goals', []) 
     mentee_experience = profile.get('experience_level', '')
     
 
     if not mentee_skills:
-        return jsonify({'message': 'Goals are required'}), 400
+        return jsonify({'message': 'User profile goals are required for matching'}), 400
     
     try:
-        # Match mentors using AI
-        match = match_mentor_mentee(mentee_skills, mentee_experience)
-        
-        # # Log the matching data for AI learning
-        # learning_data = {
-        #     'type': 'mentor_matching',
-        #     'mentee_id': str(current_user['_id']),
-        #     'mentee_skills': mentee_skills,
-        #     'mentee_experience': mentee_experience,
-        #     'matches': matches,
-        #     'timestamp': datetime.datetime.utcnow()
-        # }
-        
-        # ai_learning_data.insert_one(learning_data)
-        
+        match_result = match_mentor_mentee(mentee_skills, mentee_experience)
+        UserModel.link_mentor_and_mentee(match_result['mentor'], current_user.get('_id'))
+
         return jsonify({
             'message': 'Mentor matching successful',
-            'matches': match
+            'matches': match_result
         }), 200
     except Exception as e:
         return jsonify({'message': f'Error matching mentors: {str(e)}'}), 500

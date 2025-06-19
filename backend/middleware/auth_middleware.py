@@ -38,7 +38,7 @@ def token_required(f):
         except Exception as e:
             return jsonify({'error': 'Token verification failed'}), 401
 
-        return f(*args, **kwargs)
+        return f(current_user, *args, **kwargs) 
 
     return decorated_function
 

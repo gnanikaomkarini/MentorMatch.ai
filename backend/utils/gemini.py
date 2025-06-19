@@ -6,6 +6,6 @@ class GeminiLLM:
         self.model = genai.GenerativeModel("gemini-2.5-flash")
 
     def invoke(self, messages):
-        prompt = "\n".join([m.content for m in messages])
+        prompt = "\n".join([m['content'] for m in messages])
         response = self.model.generate_content(prompt)
         return type("LLMResponse", (), {"content": response.text})

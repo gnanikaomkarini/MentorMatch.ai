@@ -79,6 +79,36 @@ class UserModel:
     def get_all_mentors():
         """Get all users with role 'mentor'"""
         return list(users_collection.find({'role': 'mentor'}))
+    
+    @staticmethod
+    def link_mentor_and_mentee(mentor_id: str, mentee_id: str):
+        """Add a mentee to a mentor's list and a mentor to a mentee's list"""
+        try:
+            mentor = users_collection.find_one({'_id': ObjectId(mentor_id), 'role': 'mentor'})
+            mentee = users_collection.find_one({'_id': ObjectId(mentee_id), 'role': 'mentee'})
+
+            if not mentor or not mentee:
+                print("Invalid mentor or mentee ID")
+                return False
+
+            # Update mentor: add mentee_id to `mentees` if not already present
+            users_collection.update_one(
+                {'_id': ObjectId(mentor_id)},
+                {'$addToSet': {'mentees': ObjectId(mentee_id)}, '$set': {'updated_at': datetime.utcnow()}}
+            )
+
+            # Update mentee: add mentor_id to `mentors` if not already present
+            users_collection.update_one(
+                {'_id': ObjectId(mentee_id)},
+                {'$addToSet': {'mentors': ObjectId(mentor_id)}, '$set': {'updated_at': datetime.utcnow()}}
+            )
+
+            return True
+
+        except Exception as e:
+            print(f"Error linking mentor and mentee: {e}")
+            return False
+
 
 
 # Create indexes for better performance
