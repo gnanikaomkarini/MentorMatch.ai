@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-
 import { useState } from "react"
 import { useSearchParams } from "next/navigation"
 import Link from "next/link"
@@ -52,6 +51,12 @@ export default function SignupPage() {
       // In a real app, this would be an API call to register
       await new Promise((resolve) => setTimeout(resolve, 1000))
 
+      // Store user data in localStorage
+      localStorage.setItem('userData', JSON.stringify({
+        name: formData.name,
+        email: formData.email,
+      }))
+
       // Redirect to onboarding
       window.location.href = `/onboarding/${activeTab}`
     } catch (err) {
@@ -94,12 +99,10 @@ export default function SignupPage() {
               </TabsList>
               <TabsContent value="mentee">
                 <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
-                  
                 </p>
               </TabsContent>
               <TabsContent value="mentor">
                 <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
-                  
                 </p>
               </TabsContent>
             </Tabs>

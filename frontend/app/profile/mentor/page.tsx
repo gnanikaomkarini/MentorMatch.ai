@@ -17,18 +17,24 @@ interface MentorProfile {
   company: string
   bio: string
   skills: string[]
-  availability: string[]
+  availability: { [day: string]: string[] }
+  languages: string[]
+}
+
+// Define the shape of user data
+interface UserData {
+  name: string
+  email: string
 }
 
 export default function MentorProfilePage() {
   const router = useRouter()
   const [profile, setProfile] = useState<MentorProfile | null>(null)
-  const [userName, setUserName] = useState<string>("User") // Placeholder for user name
-  const [userEmail, setUserEmail] = useState<string>("user@example.com") // Placeholder for user email
+  const [userData, setUserData] = useState<UserData | null>(null)
 
-  // Fetch profile data (placeholder: localStorage or API)
+  // Fetch profile and user data
   useEffect(() => {
-    // Example: Retrieve from localStorage (replace with API call in production)
+    // Retrieve profile from localStorage
     const storedProfile = localStorage.getItem("mentorProfile")
     if (storedProfile) {
       setProfile(JSON.parse(storedProfile))
@@ -38,24 +44,31 @@ export default function MentorProfilePage() {
         yearsExperience: "7-10",
         currentRole: "Senior Software Engineer",
         company: "TechCorp",
-        bio: "Experienced software engineer with a passion for mentoring aspiring developers in React, Node.js, and system design. I enjoy helping mentees achieve their career goals through practical, hands-on guidance.",
+        bio: "Experienced software engineer with a passion for mentoring aspiring developers in React, Node.js, and system design.",
         skills: ["React", "Node.js", "System Design", "JavaScript", "AWS"],
-        availability: ["Monday evenings", "Wednesday evenings", "Saturday mornings"],
+        availability: { "Monday": ["evening"], "Saturday": ["morning"] },
+        languages: ["English", "Hindi"],
       })
     }
-    // Placeholder: Fetch user name and email (e.g., from auth context or API)
-    setUserName("Jane Smith") // Replace with actual user data
-    setUserEmail("jane.smith@example.com") // Replace with actual user data
+
+    // Retrieve user data from localStorage
+    const storedUserData = localStorage.getItem('userData')
+    if (storedUserData) {
+      setUserData(JSON.parse(storedUserData))
+    } else {
+      setUserData({ name: 'User', email: 'user@example.com' })
+    }
   }, [])
 
   // Handle navigation for editing profile
-  const handleNext = () => {
-    router.push("/onboarding/mentor") // Redirect to onboarding for editing
+  const handleEditProfile = () => {
+    router.push("/onboarding/mentor")
   }
 
   // Format years of experience for display
   const formatYearsExperience = (years: string) => {
     const yearsMap: { [key: string]: string } = {
+      "<1": "<1 year",
       "1-3": "1-3 years",
       "4-6": "4-6 years",
       "7-10": "7-10 years",
@@ -64,7 +77,15 @@ export default function MentorProfilePage() {
     return yearsMap[years] || years
   }
 
-  if (!profile) {
+  // Format availability for display
+  const formatAvailability = (availability: { [day: string]: string[] }) => {
+    const entries = Object.entries(availability).flatMap(([day, times]) =>
+      times.map((time) => `${day} ${time.charAt(0).toUpperCase() + time.slice(1)}`)
+    )
+    return entries.length > 0 ? entries : ["No availability selected"]
+  }
+
+  if (!profile || !userData) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
         <Card className="w-full max-w-md">
@@ -100,8 +121,8 @@ export default function MentorProfilePage() {
               </AvatarFallback>
             </Avatar>
             <div className="text-center sm:text-left">
-              <CardTitle className="text-2xl font-bold">{userName}</CardTitle>
-              <CardDescription className="text-gray-500 dark:text-gray-400">{userEmail}</CardDescription>
+              <CardTitle className="text-2xl font-bold">{userData.name}</CardTitle>
+              <CardDescription className="text-gray-500 dark:text-gray-400">{userData.email}</CardDescription>
             </div>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -153,18 +174,34 @@ export default function MentorProfilePage() {
             <div>
               <Label className="text-sm font-medium text-gray-700 dark:text-gray-300">Availability</Label>
               <div className="flex flex-wrap gap-2 mt-2">
-                {profile.availability.length > 0 ? (
-                  profile.availability.map((day) => (
+                {formatAvailability(profile.availability).map((slot) => (
+                  <Badge
+                    key={slot}
+                    variant="outline"
+                    className="text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600"
+                  >
+                    {slot}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+
+            {/* Languages */}
+            <div>
+              <Label className="text-sm font-medium text-gray-700 dark:text-gray-300">Teaching Languages</Label>
+              <div className="flex flex-wrap gap-2 mt-2">
+                {profile.languages.length > 0 ? (
+                  profile.languages.map((language) => (
                     <Badge
-                      key={day}
-                      variant="outline"
-                      className="text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600"
+                      key={language}
+                      variant="secondary"
+                      className="bg-blue-100 text-blue-600 dark:bg-blue-900 dark:text-blue-300"
                     >
-                      {day}
+                      {language}
                     </Badge>
                   ))
                 ) : (
-                  <p className="text-gray-500 dark:text-gray-400">No availability selected</p>
+                  <p className="text-gray-500 dark:text-gray-400">No languages selected</p>
                 )}
               </div>
             </div>
@@ -172,7 +209,7 @@ export default function MentorProfilePage() {
             {/* Edit Profile Button */}
             <div className="flex justify-end">
               <Button
-                onClick={handleNext}
+                onClick={handleEditProfile}
                 className="bg-purple-600 hover:bg-purple-700"
               >
                 <Edit className="h-5 w-5 mr-2" />
