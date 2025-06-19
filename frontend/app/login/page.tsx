@@ -28,6 +28,7 @@ export default function LoginPage() {
 
   const [error, setError] = useState("")
   const [isLoading, setIsLoading] = useState(false)
+  const [welcome, setWelcome] = useState("") // Add this state
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
@@ -38,13 +39,35 @@ export default function LoginPage() {
     e.preventDefault()
     setError("")
     setIsLoading(true)
+    setWelcome("")
 
     try {
-      // In a real app, this would be an API call to authenticate
-      await new Promise((resolve) => setTimeout(resolve, 1000))
+      const response = await fetch("http://localhost:5000/api/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        credentials: "include",
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password,
+          role: activeTab
+        })
+      })
 
-      // Redirect to dashboard based on role
-      window.location.href = `/dashboard/${activeTab}`
+      const data = await response.json()
+      console.log("Login response:", response.status, data)
+
+      if (!response.ok) {
+        setError(data.message || "Invalid email or password. Please try again.")
+        return
+      }
+
+      // Show welcome message before redirect
+      setWelcome(`Welcome back, ${data.user?.name || "User"}!`)
+      setTimeout(() => {
+        window.location.href = `/dashboard/${activeTab}`
+      }, 1500)
     } catch (err) {
       setError("Invalid email or password. Please try again.")
     } finally {
@@ -87,6 +110,12 @@ export default function LoginPage() {
               <Alert variant="destructive" className="mb-4">
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+
+            {welcome && (
+              <Alert variant="default" className="mb-4 bg-green-100 border-green-400 text-green-800">
+                {welcome}
               </Alert>
             )}
 
