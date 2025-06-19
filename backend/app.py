@@ -12,6 +12,8 @@ from routes.meeting_routes import meeting_bp
 from routes.interview_routes import interview_bp
 from routes.ai_routes import ai_bp
 from routes.notification_routes import notification_bp
+from routes.dashboard_routes import dashboard_bp
+
 
 # Load environment variables
 load_dotenv()
@@ -28,6 +30,8 @@ app.register_blueprint(meeting_bp, url_prefix='/api/meetings')
 app.register_blueprint(interview_bp, url_prefix='/api/interviews')
 app.register_blueprint(ai_bp, url_prefix='/api/ai')
 app.register_blueprint(notification_bp, url_prefix='/api/notifications')
+app.register_blueprint(dashboard_bp, url_prefix='/api/dashboard')
+
 
 @app.route('/')
 def index():

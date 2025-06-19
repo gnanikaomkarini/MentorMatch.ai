@@ -1,21 +1,38 @@
 "use client"
 
-import { useState } from "react"
-import Link from "next/link"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Progress } from "@/components/ui/progress"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Badge } from "@/components/ui/badge"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Calendar, CheckCircle, Clock, MessageSquare, Play, Video } from "lucide-react"
 import DashboardLayout from "@/components/dashboard-layout"
 import HorizontalScrollCards from "@/components/horizontal-scroll-cards"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
+import { Progress } from "@/components/ui/progress"
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs"
+import {
+  Calendar,
+  CheckCircle,
+  Clock,
+  MessageSquare,
+  Video,
+} from "lucide-react"
+import Link from "next/link"
+import { useState } from "react"
 
 export default function MenteeDashboard() {
   const [activeTab, setActiveTab] = useState("overview")
 
-  // Mock data
   const mentors = [
     {
       id: 1,
@@ -39,7 +56,7 @@ export default function MenteeDashboard() {
       role: "Data Scientist",
       avatar: "/placeholder.svg?height=40&width=40",
       matchScore: 82,
-      status: "online",
+      status: "offline",
     },
   ]
 
@@ -77,7 +94,8 @@ export default function MenteeDashboard() {
     {
       id: 2,
       sender: "AI Assistant",
-      message: "I've analyzed your latest quiz results. Would you like some additional resources on React hooks?",
+      message:
+        "I've analyzed your latest quiz results. Would you like some additional resources on React hooks?",
       time: "2 days ago",
     },
   ]
@@ -85,6 +103,7 @@ export default function MenteeDashboard() {
   return (
     <DashboardLayout userRole="mentee">
       <div className="space-y-6">
+        {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Welcome back, Sarah!</h1>
@@ -102,6 +121,7 @@ export default function MenteeDashboard() {
           </div>
         </div>
 
+        {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
           <TabsList>
             <TabsTrigger value="overview">Overview</TabsTrigger>
@@ -110,9 +130,9 @@ export default function MenteeDashboard() {
             <TabsTrigger value="meetings">Meetings</TabsTrigger>
           </TabsList>
 
+          {/* ========== OVERVIEW TAB ========== */}
           <TabsContent value="overview" className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {/* Mentors Section */}
               <div className="col-span-3">
                 <HorizontalScrollCards
                   title="Your Mentors"
@@ -123,9 +143,9 @@ export default function MenteeDashboard() {
                 />
               </div>
 
-              {/* Progress Card */}
+              {/* Roadmap Progress */}
               <Card>
-                <CardHeader className="pb-2">
+                <CardHeader>
                   <CardTitle className="text-lg">Roadmap Progress</CardTitle>
                   <CardDescription>{roadmap.title}</CardDescription>
                 </CardHeader>
@@ -143,15 +163,15 @@ export default function MenteeDashboard() {
                   </div>
                 </CardContent>
                 <CardFooter>
-                  <Button variant="outline" className="w-full">
-                    <Link href="/roadmap">View Full Roadmap</Link>
-                  </Button>
+                  <Link href="/roadmap" className="w-full">
+                    <Button variant="outline" className="w-full">View Full Roadmap</Button>
+                  </Link>
                 </CardFooter>
               </Card>
 
-              {/* Next Meeting Card */}
+              {/* Meeting Card */}
               <Card>
-                <CardHeader className="pb-2">
+                <CardHeader>
                   <CardTitle className="text-lg">Next Meeting</CardTitle>
                   <CardDescription>Upcoming session with your mentor</CardDescription>
                 </CardHeader>
@@ -173,9 +193,9 @@ export default function MenteeDashboard() {
                   )}
                 </CardContent>
                 <CardFooter>
-                  <Button variant="outline" className="w-full">
-                    <Link href="/schedule">Schedule Meeting</Link>
-                  </Button>
+                  <Link href="/schedule" className="w-full">
+                    <Button variant="outline" className="w-full">Schedule Meeting</Button>
+                  </Link>
                 </CardFooter>
               </Card>
             </div>
@@ -205,58 +225,14 @@ export default function MenteeDashboard() {
                 </div>
               </CardContent>
               <CardFooter>
-                <Button variant="outline" className="w-full">
-                  <Link href="/chat">Open Chat</Link>
-                </Button>
+                <Link href="/chat" className="w-full">
+                  <Button variant="outline" className="w-full">Open Chat</Button>
+                </Link>
               </CardFooter>
             </Card>
-
-            {/* Quick Actions */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Continue Learning</CardTitle>
-                  <CardDescription>Pick up where you left off</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2">
-                    <p className="font-medium">React Fundamentals: Component Lifecycle</p>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">
-                      Learn how React components are created, updated, and destroyed
-                    </p>
-                    <div className="flex items-center text-sm text-gray-500 dark:text-gray-400">
-                      <Clock className="mr-1 h-4 w-4" />
-                      <span>Estimated time: 45 minutes</span>
-                    </div>
-                  </div>
-                </CardContent>
-                <CardFooter>
-                  <Button className="w-full bg-purple-600 hover:bg-purple-700">
-                    <Play className="mr-2 h-4 w-4" /> Continue
-                  </Button>
-                </CardFooter>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Practice Interview</CardTitle>
-                  <CardDescription>Test your knowledge with our AI interviewer</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-gray-600 dark:text-gray-300">
-                    Ready to test your React knowledge? Our AI interviewer will ask you questions about components,
-                    state management, and hooks to help identify areas for improvement.
-                  </p>
-                </CardContent>
-                <CardFooter>
-                  <Button variant="outline" className="w-full">
-                    <Link href="/interview">Start Practice Interview</Link>
-                  </Button>
-                </CardFooter>
-              </Card>
-            </div>
           </TabsContent>
 
+          {/* ========== ROADMAP TAB ========== */}
           <TabsContent value="roadmap" className="space-y-4">
             <Card>
               <CardHeader>
@@ -272,8 +248,8 @@ export default function MenteeDashboard() {
                           module.completed
                             ? "bg-green-100 text-green-600 dark:bg-green-900 dark:text-green-300"
                             : module.current
-                              ? "bg-purple-100 text-purple-600 dark:bg-purple-900 dark:text-purple-300"
-                              : "bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400"
+                            ? "bg-purple-100 text-purple-600 dark:bg-purple-900 dark:text-purple-300"
+                            : "bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400"
                         }`}
                       >
                         {module.completed ? <CheckCircle className="h-5 w-5" /> : <span>{index + 1}</span>}
@@ -294,13 +270,14 @@ export default function MenteeDashboard() {
                 </div>
               </CardContent>
               <CardFooter>
-                <Button className="w-full bg-purple-600 hover:bg-purple-700">
-                  <Link href="/roadmap">View Detailed Roadmap</Link>
-                </Button>
+                <Link href="/roadmap" className="w-full">
+                  <Button className="w-full bg-purple-600 hover:bg-purple-700">View Detailed Roadmap</Button>
+                </Link>
               </CardFooter>
             </Card>
           </TabsContent>
 
+          {/* ========== RESOURCES TAB ========== */}
           <TabsContent value="resources" className="space-y-4">
             <Card>
               <CardHeader>
@@ -308,6 +285,7 @@ export default function MenteeDashboard() {
                 <CardDescription>Curated materials for your current module</CardDescription>
               </CardHeader>
               <CardContent>
+                {/* You can turn this into a map if the list grows */}
                 <div className="space-y-4">
                   <div className="p-4 border rounded-lg">
                     <div className="flex items-center justify-between">
@@ -318,9 +296,7 @@ export default function MenteeDashboard() {
                         </p>
                       </div>
                       <Button variant="outline" size="sm">
-                        <a href="https://reactjs.org" target="_blank" rel="noopener noreferrer">
-                          View
-                        </a>
+                        <a href="https://reactjs.org" target="_blank" rel="noopener noreferrer">View</a>
                       </Button>
                     </div>
                   </div>
@@ -334,9 +310,7 @@ export default function MenteeDashboard() {
                         </p>
                       </div>
                       <Button variant="outline" size="sm">
-                        <a href="https://youtube.com" target="_blank" rel="noopener noreferrer">
-                          Watch
-                        </a>
+                        <a href="https://youtube.com" target="_blank" rel="noopener noreferrer">Watch</a>
                       </Button>
                     </div>
                   </div>
@@ -350,9 +324,7 @@ export default function MenteeDashboard() {
                         </p>
                       </div>
                       <Button variant="outline" size="sm">
-                        <a href="#" target="_blank" rel="noopener noreferrer">
-                          Read
-                        </a>
+                        <a href="#" target="_blank" rel="noopener noreferrer">Read</a>
                       </Button>
                     </div>
                   </div>
@@ -361,6 +333,7 @@ export default function MenteeDashboard() {
             </Card>
           </TabsContent>
 
+          {/* ========== MEETINGS TAB ========== */}
           <TabsContent value="meetings" className="space-y-4">
             <Card>
               <CardHeader>
@@ -385,25 +358,23 @@ export default function MenteeDashboard() {
                             </div>
                           </div>
                           <div className="flex gap-2 mt-4 md:mt-0">
-                            <Button variant="outline" size="sm">
-                              Reschedule
-                            </Button>
-                            <Button size="sm" className="bg-purple-600 hover:bg-purple-700">
-                              Join
-                            </Button>
+                            <Button variant="outline" size="sm">Reschedule</Button>
+                            <Button size="sm" className="bg-purple-600 hover:bg-purple-700">Join</Button>
                           </div>
                         </div>
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <p className="text-center text-gray-500 dark:text-gray-400 py-8">No upcoming meetings scheduled</p>
+                  <p className="text-center text-gray-500 dark:text-gray-400 py-8">
+                    No upcoming meetings scheduled
+                  </p>
                 )}
               </CardContent>
               <CardFooter>
-                <Button className="w-full bg-purple-600 hover:bg-purple-700">
-                  <Link href="/schedule">Schedule New Meeting</Link>
-                </Button>
+                <Link href="/schedule" className="w-full">
+                  <Button className="w-full bg-purple-600 hover:bg-purple-700">Schedule New Meeting</Button>
+                </Link>
               </CardFooter>
             </Card>
 
