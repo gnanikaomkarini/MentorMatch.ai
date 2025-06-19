@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, g
 import datetime
 from bson.objectid import ObjectId
 
@@ -11,7 +11,8 @@ ai_bp = Blueprint('ai', __name__)
 
 @ai_bp.route('/match', methods=['POST'])
 @token_required
-def match_mentors(current_user):
+def match_mentors():
+    current_user = g.current_user
     if not current_user:
         return jsonify({'error': 'Authenticated user not found'}), 401
 

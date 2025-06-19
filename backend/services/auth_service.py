@@ -37,23 +37,24 @@ class AuthService:
         if user['authentication']['password'] != expected_hash:
             raise CustomError("Invalid email or password", 401)
 
-        # Remove sensitive data before returning
-        user_data = {
-            '_id': user['_id'],
+        user_response_data = {
+            '_id': str(user['_id']),
             'name': user['name'],
             'email': user['email'],
             'username': user['username'],
             'role': user['role'],
-            'profile': user['profile'],
-            'created_at': user['created_at']
+            'profile': user.get('profile', {}),
+            'created_at': user['created_at'].isoformat() if user.get('created_at') else None
         }
 
         if user['role'] == 'mentor':
-            user_data['mentees'] = user.get('mentees', [])
-        else:
-            user_data['mentors'] = user.get('mentors', [])
+            mentees_ids = user.get('mentees', [])
+            user_response_data['mentees'] = [str(m_id) for m_id in mentees_ids]
+        elif user['role'] == 'mentee':
+            mentors_ids = user.get('mentors', [])
+            user_response_data['mentors'] = [str(m_id) for m_id in mentors_ids]
 
-        return user_data
+        return user_response_data
 
     @staticmethod
     def register(name, username, email, password, role, profile_data=None):
@@ -109,22 +110,26 @@ class AuthService:
                 }
 
         # Create user
-        user = UserModel.create_user(user_data)
+        created_db_user = UserModel.create_user(user_data)
 
-        # Remove sensitive data before returning
+        # Prepare API-ready user data
         user_response = {
-            '_id': user['_id'],
-            'name': user['name'],
-            'email': user['email'],
-            'username': user['username'],
-            'role': user['role'],
-            'profile': user['profile'],
-            'created_at': user['created_at']
+            '_id': str(created_db_user['_id']),
+            'name': created_db_user['name'],
+            'email': created_db_user['email'],
+            'username': created_db_user['username'],
+            'role': created_db_user['role'],
+            'profile': created_db_user.get('profile', {}),
+            'created_at': created_db_user['created_at'].isoformat() if created_db_user.get('created_at') else None
         }
 
-        if user['role'] == 'mentor':
-            user_response['mentees'] = user.get('mentees', [])
-        else:
-            user_response['mentors'] = user.get('mentors', [])
+        if created_db_user['role'] == 'mentor':
+            # Mentees list is typically empty on registration, but handle for consistency
+            mentees_ids = created_db_user.get('mentees', [])
+            user_response['mentees'] = [str(m_id) for m_id in mentees_ids]
+        elif created_db_user['role'] == 'mentee':
+            # Mentors list is typically empty on registration
+            mentors_ids = created_db_user.get('mentors', [])
+            user_response['mentors'] = [str(m_id) for m_id in mentors_ids]
 
         return user_response
