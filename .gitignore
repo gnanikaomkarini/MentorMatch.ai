@@ -23,7 +23,7 @@ pip-wheel-metadata/
 
 # Dependencies
 frontend/node_modules
-node_modules/ # If node_modules can also be at the root for other tools
+node_modules
 
 # Next.js
 frontend/.next/
@@ -50,6 +50,7 @@ yarn-error.log*
 # TypeScript
 *.tsbuildinfo
 frontend/next-env.d.ts
+next-env.d.ts
 
 # IDE / Editor specific
 .vscode/
