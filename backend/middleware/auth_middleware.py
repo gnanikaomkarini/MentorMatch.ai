@@ -9,51 +9,65 @@ def token_required(f):
     def decorated_function(*args, **kwargs):
         token = None
 
-        # Check for token in cookies first
+        # 1. Try to fetch from cookie
         if 'auth_token' in request.cookies:
             token = request.cookies.get('auth_token')
-        # Fallback to Authorization header
+
+        # 2. Try Authorization header
         elif 'Authorization' in request.headers:
-            auth_header = request.headers['Authorization']
+            auth_header = request.headers.get('Authorization', '')
             if auth_header.startswith('Bearer '):
                 token = auth_header.split(' ')[1]
 
         if not token:
-            return jsonify({'error': 'Token is missing'}), 401
+            return jsonify({'error': 'Authorization token is missing'}), 401
 
         try:
-            # Verify token
+            # Verify JWT token
             payload = JWTUtils.verify_token(token)
+            user_id = payload.get('user_id')
 
-            # Get current user
-            current_user = UserModel.get_user_by_id(payload['user_id'])
+            if not user_id:
+                raise CustomError("Invalid token payload", 401)
+
+            # Retrieve user from database
+            current_user = UserModel.get_user_by_id(user_id)
             if not current_user:
-                return jsonify({'error': 'User not found'}), 401
+                raise CustomError("User not found", 401)
 
-            # Store user in g for access in route handlers
+            # Attach to Flask global context
             g.current_user = current_user
 
-        except CustomError as e:
-            return jsonify({'error': e.message}), e.status_code
+        except CustomError as ce:
+            return jsonify({'error': ce.message}), ce.status_code
         except Exception as e:
-            return jsonify({'error': 'Token verification failed'}), 401
+            return jsonify({'error': 'Token verification failed', 'details': str(e)}), 401
 
-        return f(*args, **kwargs) # Use g.current_user in the decorated function
+        return f(*args, **kwargs)
 
     return decorated_function
+
 
 def mentor_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if not hasattr(g, 'current_user') or g.current_user['role'] != 'mentor':
+        if not hasattr(g, 'current_user') or g.current_user.get('role') != 'mentor':
             return jsonify({'error': 'Mentor access required'}), 403
         return f(*args, **kwargs)
     return decorated_function
 
+
 def mentee_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if not hasattr(g, 'current_user') or g.current_user['role'] != 'mentee':
+        if not hasattr(g, 'current_user') or g.current_user.get('role') != 'mentee':
             return jsonify({'error': 'Mentee access required'}), 403
         return f(*args, **kwargs)
     return decorated_function
+
+
+def get_current_user():
+    """Get current user object from Flask context."""
+    if hasattr(g, 'current_user'):
+        return g.current_user
+    raise CustomError("User not authenticated", 401)
