@@ -10,7 +10,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox"
 import { Progress } from "@/components/ui/progress"
 import { ArrowLeft, ArrowRight, Check, Plus, X } from "lucide-react"
-import Navbar from "@/components/navbar"
 import Footer from "@/components/footer"
 
 interface UserData {
@@ -23,19 +22,19 @@ export default function MenteeOnboarding() {
   const [userData, setUserData] = useState<UserData | null>(null)
   const [formData, setFormData] = useState({
     careerGoal: "",
+    otherCareerGoal: "",
     skillLevel: "",
     learningStyle: "",
     interests: [] as string[],
-    availability: {} as { [day: string]: string[] }, // e.g., { "Monday": ["morning", "evening"] }
+    availability: {} as { [day: string]: string[] },
     newInterest: "",
     languages: [] as string[],
     languageInput: "",
   })
 
-  const totalSteps = 5 // Increased for languages step
+  const totalSteps = 5
   const progress = (step / totalSteps) * 100
 
-  // Fetch user data
   useEffect(() => {
     const storedUserData = localStorage.getItem('userData')
     if (storedUserData) {
@@ -47,7 +46,6 @@ export default function MenteeOnboarding() {
     if (step < totalSteps) {
       setStep(step + 1)
     } else {
-      // Process languages before saving
       const finalLanguages = formData.languageInput
         .split(",")
         .map((lang) => lang.trim())
@@ -57,8 +55,6 @@ export default function MenteeOnboarding() {
         languages: [...formData.languages, ...finalLanguages],
         languageInput: "",
       }
-      
-      // Save to localStorage
       localStorage.setItem('menteeProfile', JSON.stringify(finalFormData))
       window.location.href = "/dashboard/mentee"
     }
@@ -119,8 +115,6 @@ export default function MenteeOnboarding() {
 
   return (
     <div className="min-h-screen flex flex-col">
-      <Navbar />
-
       <div className="flex-1 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 bg-gray-50 dark:bg-gray-900">
         <Card className="w-full max-w-2xl">
           <CardHeader>
@@ -137,7 +131,6 @@ export default function MenteeOnboarding() {
             {step === 1 && (
               <div className="space-y-4">
                 <h3 className="text-lg font-medium">What are your career goals?</h3>
-
                 <div className="space-y-2">
                   <Label htmlFor="careerGoal">Career Goal</Label>
                   <Select
@@ -159,7 +152,17 @@ export default function MenteeOnboarding() {
                     </SelectContent>
                   </Select>
                 </div>
-
+                {formData.careerGoal === "other" && (
+                  <div className="space-y-2">
+                    <Label htmlFor="otherCareerGoal">Specify Career Goal</Label>
+                    <Input
+                      id="otherCareerGoal"
+                      value={formData.otherCareerGoal}
+                      onChange={(e) => updateFormData("otherCareerGoal", e.target.value)}
+                      placeholder="e.g. Cloud Architect"
+                    />
+                  </div>
+                )}
                 <div className="space-y-2">
                   <Label htmlFor="skillLevel">Current Skill Level</Label>
                   <Select
@@ -183,7 +186,6 @@ export default function MenteeOnboarding() {
             {step === 2 && (
               <div className="space-y-4">
                 <h3 className="text-lg font-medium">What are your interests?</h3>
-
                 <div className="flex gap-2">
                   <Input
                     value={formData.newInterest}
@@ -195,7 +197,6 @@ export default function MenteeOnboarding() {
                     <Plus className="h-4 w-4" />
                   </Button>
                 </div>
-
                 <div className="flex flex-wrap gap-2 mt-4">
                   {formData.interests.map((interest) => (
                     <div
@@ -222,7 +223,6 @@ export default function MenteeOnboarding() {
             {step === 3 && (
               <div className="space-y-4">
                 <h3 className="text-lg font-medium">How do you prefer to learn?</h3>
-
                 <div className="space-y-2">
                   <Label htmlFor="learningStyle">Learning Style</Label>
                   <Select
@@ -249,7 +249,6 @@ export default function MenteeOnboarding() {
                 <p className="text-sm text-gray-500 dark:text-gray-400">
                   Select available days and times (Morning: 8 AM–12 PM, Afternoon: 12 PM–5 PM, Evening: 5 PM–10 PM)
                 </p>
-
                 <div className="space-y-4">
                   {days.map((day) => (
                     <div key={day} className="flex items-center space-x-4">
@@ -296,7 +295,6 @@ export default function MenteeOnboarding() {
             <Button variant="outline" onClick={handleBack} disabled={step === 1}>
               <ArrowLeft className="mr-2 h-4 w-4" /> Back
             </Button>
-
             <Button onClick={handleNext} className="bg-purple-600 hover:bg-purple-700">
               {step === totalSteps ? (
                 <>
@@ -311,7 +309,6 @@ export default function MenteeOnboarding() {
           </CardFooter>
         </Card>
       </div>
-
       <Footer />
     </div>
   )

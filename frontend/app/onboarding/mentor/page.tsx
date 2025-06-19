@@ -10,7 +10,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox"
 import { Progress } from "@/components/ui/progress"
 import { ArrowLeft, ArrowRight, Check, Plus, X } from "lucide-react"
-import Navbar from "@/components/navbar"
 import Footer from "@/components/footer"
 
 interface UserData {
@@ -27,16 +26,15 @@ export default function MentorOnboarding() {
     company: "",
     bio: "",
     skills: [] as string[],
-    availability: {} as { [day: string]: string[] }, // e.g., { "Monday": ["morning", "evening"], "Tuesday": [] }
+    availability: {} as { [day: string]: string[] },
     newSkill: "",
     languages: [] as string[],
     languageInput: "",
   })
 
-  const totalSteps = 5 // Increased for languages step
+  const totalSteps = 5
   const progress = (step / totalSteps) * 100
 
-  // Fetch user data
   useEffect(() => {
     const storedUserData = localStorage.getItem('userData')
     if (storedUserData) {
@@ -48,7 +46,6 @@ export default function MentorOnboarding() {
     if (step < totalSteps) {
       setStep(step + 1)
     } else {
-      // Process languages before saving
       const finalLanguages = formData.languageInput
         .split(",")
         .map((lang) => lang.trim())
@@ -58,8 +55,6 @@ export default function MentorOnboarding() {
         languages: [...formData.languages, ...finalLanguages],
         languageInput: "",
       }
-      
-      // Save to localStorage
       localStorage.setItem('mentorProfile', JSON.stringify(finalFormData))
       window.location.href = "/dashboard/mentor"
     }
@@ -120,8 +115,6 @@ export default function MentorOnboarding() {
 
   return (
     <div className="min-h-screen flex flex-col">
-      <Navbar />
-
       <div className="flex-1 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 bg-gray-50 dark:bg-gray-900">
         <Card className="w-full max-w-2xl">
           <CardHeader>
@@ -138,7 +131,6 @@ export default function MentorOnboarding() {
             {step === 1 && (
               <div className="space-y-4">
                 <h3 className="text-lg font-medium">Tell us about your professional background</h3>
-
                 <div className="space-y-2">
                   <Label htmlFor="yearsExperience">Years of Experience</Label>
                   <Select
@@ -149,7 +141,7 @@ export default function MentorOnboarding() {
                       <SelectValue placeholder="Select years of experience" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="<1"> less than 1 year</SelectItem>
+                      <SelectItem value="<1">less than 1 year</SelectItem>
                       <SelectItem value="1-3">1-3 years</SelectItem>
                       <SelectItem value="4-6">4-6 years</SelectItem>
                       <SelectItem value="7-10">7-10 years</SelectItem>
@@ -157,7 +149,6 @@ export default function MentorOnboarding() {
                     </SelectContent>
                   </Select>
                 </div>
-
                 <div className="space-y-2">
                   <Label htmlFor="currentRole">Current Role</Label>
                   <Input
@@ -167,7 +158,6 @@ export default function MentorOnboarding() {
                     placeholder="e.g. Senior Software Engineer"
                   />
                 </div>
-
                 <div className="space-y-2">
                   <Label htmlFor="company">Company/Organization</Label>
                   <Input
@@ -183,7 +173,6 @@ export default function MentorOnboarding() {
             {step === 2 && (
               <div className="space-y-4">
                 <h3 className="text-lg font-medium">What skills can you mentor others in?</h3>
-
                 <div className="flex gap-2">
                   <Input
                     value={formData.newSkill}
@@ -195,7 +184,6 @@ export default function MentorOnboarding() {
                     <Plus className="h-4 w-4" />
                   </Button>
                 </div>
-
                 <div className="flex flex-wrap gap-2 mt-4">
                   {formData.skills.map((skill) => (
                     <div
@@ -222,7 +210,6 @@ export default function MentorOnboarding() {
             {step === 3 && (
               <div className="space-y-4">
                 <h3 className="text-lg font-medium">Tell us about yourself</h3>
-
                 <div className="space-y-2">
                   <Label htmlFor="bio">Bio</Label>
                   <Textarea
@@ -242,7 +229,6 @@ export default function MentorOnboarding() {
                 <p className="text-sm text-gray-500 dark:text-gray-400">
                   Select available days and times (Morning: 8 AM–12 PM, Afternoon: 12 PM–5 PM, Evening: 5 PM–10 PM)
                 </p>
-
                 <div className="space-y-4">
                   {days.map((day) => (
                     <div key={day} className="flex items-center space-x-4">
@@ -289,7 +275,6 @@ export default function MentorOnboarding() {
             <Button variant="outline" onClick={handleBack} disabled={step === 1}>
               <ArrowLeft className="mr-2 h-4 w-4" /> Back
             </Button>
-
             <Button onClick={handleNext} className="bg-purple-600 hover:bg-purple-700">
               {step === totalSteps ? (
                 <>
@@ -304,7 +289,6 @@ export default function MentorOnboarding() {
           </CardFooter>
         </Card>
       </div>
-
       <Footer />
     </div>
   )
