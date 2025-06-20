@@ -11,6 +11,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Progress } from "@/components/ui/progress"
 import { ArrowLeft, ArrowRight, Check, Plus, X } from "lucide-react"
 import Footer from "@/components/footer"
+import { useRouter } from "next/navigation"
 
 interface UserData {
   name: string;
@@ -34,6 +35,7 @@ export default function MenteeOnboarding() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const [success, setSuccess] = useState("")
+  const router = useRouter()
 
   const totalSteps = 5
   const progress = (step / totalSteps) * 100
@@ -91,7 +93,10 @@ export default function MenteeOnboarding() {
         setSuccess("Profile completed successfully!")
         // Optionally store in localStorage
         localStorage.setItem('menteeProfile', JSON.stringify(payload.profile))
-        window.location.href = "/dashboard/mentee"
+        // Instead of redirecting to dashboard, go to match page
+        setTimeout(() => {
+          router.push("/match")
+        }, 1200)
       } catch (err) {
         setError("Failed to update profile")
       } finally {
