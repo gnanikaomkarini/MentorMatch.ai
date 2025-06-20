@@ -16,6 +16,7 @@ auth_bp.route('/register', methods=['POST'])(AuthController.register)
 auth_bp.route('/login', methods=['POST'])(AuthController.login)
 auth_bp.route('/logout', methods=['POST'])(AuthController.logout)
 auth_bp.route('/profile', methods=['GET'])(token_required(AuthController.get_profile))
+auth_bp.route('/profile/update', methods=['POST'])(token_required(AuthController.update_profile))
 
 # Health check route
 @auth_bp.route('/health', methods=['GET'])

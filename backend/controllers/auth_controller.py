@@ -3,8 +3,7 @@ from services.auth_service import AuthService
 from utils.jwt_utils import JWTUtils
 from utils.custom_error import CustomError
 from datetime import datetime, timedelta
-
-# Moved flask.g import to the top
+from models.user import UserModel
 
 class AuthController:
     @staticmethod
@@ -169,3 +168,48 @@ class AuthController:
 
         except Exception as e:
             return jsonify({'error': 'Failed to get profile', 'details': str(e)}), 500
+
+    @staticmethod
+    def update_profile():
+        """Update current user's profile"""
+        try:
+            user_db_object = g.current_user
+            user_id = str(user_db_object['_id'])
+            data = request.get_json()
+
+            # Only allow updating the profile object
+            profile_updates = data.get('profile', {})
+            if not isinstance(profile_updates, dict):
+                return jsonify({'error': 'Profile data must be a dictionary'}), 400
+
+            # Merge updates into existing profile
+            updated_profile = user_db_object.get('profile', {}).copy()
+            updated_profile.update(profile_updates)
+
+            # Update in DB
+            UserModel.update_user(user_id, {'profile': updated_profile})
+
+            # Fetch updated user
+            updated_user = UserModel.get_user_by_id(user_id)
+
+            # Prepare response
+            api_user_object = {
+                'id': str(updated_user['_id']),
+                'name': updated_user['name'],
+                'email': updated_user['email'],
+                'username': updated_user['username'],
+                'role': updated_user['role'],
+                'profile': updated_user.get('profile', {}),
+                'created_at': updated_user['created_at'].isoformat() if updated_user.get('created_at') else None
+            }
+            if updated_user['role'] == 'mentor':
+                api_user_object['mentees'] = [str(m_id) for m_id in updated_user.get('mentees', [])]
+            elif updated_user['role'] == 'mentee':
+                api_user_object['mentors'] = [str(m_id) for m_id in updated_user.get('mentors', [])]
+
+            return jsonify({'message': 'Profile updated successfully', 'user': api_user_object}), 200
+
+        except CustomError as e:
+            return jsonify({'error': e.message}), e.status_code
+        except Exception as e:
+            return jsonify({'error': 'Failed to update profile', 'details': str(e)}), 500
