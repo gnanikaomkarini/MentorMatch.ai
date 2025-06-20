@@ -31,6 +31,7 @@ export default function MenteeOnboarding() {
     newInterest: "",
     languages: [] as string[],
     languageInput: "",
+    bio: "",
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
@@ -70,7 +71,7 @@ export default function MenteeOnboarding() {
           learning_style: formData.learningStyle,
           availability: availabilityArr,
           languages: [...formData.languages, ...finalLanguages],
-          bio: "", // Add if you have a field for this
+          bio: formData.bio || "",
           profile_picture: "", // Add if you have a field for this
           experience_level: formData.skillLevel,
         },
@@ -320,14 +321,26 @@ export default function MenteeOnboarding() {
 
             {step === 5 && (
               <div className="space-y-4">
-                <h3 className="text-lg font-medium">What languages would you like to learn in?</h3>
+                <h3 className="text-lg font-medium">Tell us about yourself</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  Write a short bio to help your mentor understand your background and goals.
+                </p>
+                <Textarea
+                  id="bio"
+                  value={formData.bio || ""}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, bio: e.target.value }))}
+                  placeholder="Share your background, interests, and what you hope to achieve..."
+                  rows={4}
+                  className="mt-1"
+                />
+                <h3 className="text-lg font-medium mt-6">What languages would you like to learn in?</h3>
                 <p className="text-sm text-gray-500 dark:text-gray-400">
                   Enter languages you’re comfortable learning in (comma-separated, e.g., English, Hindi)
                 </p>
                 <Textarea
                   id="languageInput"
                   value={formData.languageInput}
-                  onChange={(e) => updateFormData("languageInput", e.target.value)}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, languageInput: e.target.value }))}
                   placeholder="e.g., English, Hindi, Spanish"
                   rows={3}
                   className="mt-1"
