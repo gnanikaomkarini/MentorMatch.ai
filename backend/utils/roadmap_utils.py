@@ -65,10 +65,36 @@ def search_resources(query: str) -> list:
         })
     return resources[:2]
 
+# def create_roadmap(topic) -> dict:
+#     llm = GeminiLLM(api_key=os.getenv("GEMINI_API_KEY"))
+#     modules = get_modules_with_subtopics(topic, llm)
+#     enriched_modules = []
+#     for mod in modules:
+#         enriched_subtopics = []
+#         for sub in mod["subtopics"]:
+#             resources = search_resources(f"{sub} {topic} site:youtube.com OR site:coursera.org OR free learning")
+#             enriched_subtopics.append({
+#                 "title": sub,
+#                 "resources": resources
+#             })
+
+#         enriched_modules.append({
+#             "title": mod["title"],
+#             "objective": mod["objective"],
+#             "subtopics": enriched_subtopics,
+#             "evaluation": {
+#                 "type": "questionnaire",
+#                 "status": "pending"
+#             }
+#         })
+#     return enriched_modules
+
+
 def create_roadmap(topic) -> dict:
     llm = GeminiLLM(api_key=os.getenv("GEMINI_API_KEY"))
     modules = get_modules_with_subtopics(topic, llm)
     enriched_modules = []
+
     for mod in modules:
         enriched_subtopics = []
         for sub in mod["subtopics"]:
@@ -78,36 +104,44 @@ def create_roadmap(topic) -> dict:
                 "resources": resources
             })
 
+        subtopic_list = ", ".join(mod["subtopics"])
+        question_prompt = f"""
+You're an educational AI assistant. Create 5 multiple-choice questions to evaluate understanding of the following subtopics: {subtopic_list}. Ensure that you have both medium and hard questions.
+Format your response as valid JSON:
+
+{{
+  "question1": {{
+    "question": "...",
+    "option A": "...",
+    "option B": "...",
+    "option C": "...",
+    "option D": "...",
+    "correct option": "A/B/C/D"
+  }},
+  "question2": {{ ... }},
+  "question3": {{ ... }},
+  "question4": {{ ... }},
+  "question5": {{ ... }}
+}}
+"""
+
+        eval_response = llm.invoke([{"role": "user", "content": question_prompt}])
+        content = eval_response.content.strip()
+
+        match = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", content, re.DOTALL)
+        json_str = match.group(1).strip() if match else content.strip()
+
+        try:
+            evaluation_questions = json.loads(json_str)
+        except Exception as e:
+            print("Failed to parse evaluation questions:\n", content)
+            raise e
+
         enriched_modules.append({
             "title": mod["title"],
             "objective": mod["objective"],
             "subtopics": enriched_subtopics,
-            "evaluation": {
-                "type": "questionnaire",
-                "status": "pending"
-            }
+            "evaluation": evaluation_questions
         })
 
-    # roadmap = {
-    #     "_id": "r001",
-    #     "menteeId": "u123",
-    #     "goal": topic,
-    #     "status": "in-progress",
-    #     "durationWeeks": 8,
-    #     "approvalStatus": {
-    #         "mentorId": "u456",
-    #         "status": "pending",
-    #         "comments": ""
-    #     },
-    #     "interviewTrigger": {
-    #         "type": "progress_based",
-    #         "triggerPoint": "50%"
-    #     },
-    #     "modules": enriched_modules
-    # }
-
-    # print(json.dumps(roadmap, indent=2))
     return enriched_modules
-
-# if __name__ == "__main__":
-#     generate_roadmap("Generative AI")
