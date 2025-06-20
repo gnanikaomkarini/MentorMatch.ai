@@ -1,5 +1,5 @@
 from flask import jsonify
-from models import UserModel  # Adjust if named differently
+from models import user  # Adjust if named differently
 
 class DashboardController:
 
