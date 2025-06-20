@@ -31,6 +31,9 @@ export default function MenteeOnboarding() {
     languages: [] as string[],
     languageInput: "",
   })
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState("")
+  const [success, setSuccess] = useState("")
 
   const totalSteps = 5
   const progress = (step / totalSteps) * 100
@@ -42,21 +45,58 @@ export default function MenteeOnboarding() {
     }
   }, [])
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (step < totalSteps) {
       setStep(step + 1)
     } else {
+      setLoading(true)
+      setError("")
+      setSuccess("")
+      // Prepare languages
       const finalLanguages = formData.languageInput
         .split(",")
         .map((lang) => lang.trim())
         .filter((lang) => lang && !formData.languages.includes(lang))
-      const finalFormData = {
-        ...formData,
-        languages: [...formData.languages, ...finalLanguages],
-        languageInput: "",
+      // Prepare availability as array of "Day Time"
+      const availabilityArr = Object.entries(formData.availability).flatMap(([day, times]) =>
+        times.map((time) => `${day} ${time.charAt(0).toUpperCase() + time.slice(1)}`)
+      )
+      // Prepare payload
+      const payload = {
+        profile: {
+          goals: [formData.careerGoal === "other" ? formData.otherCareerGoal : formData.careerGoal].filter(Boolean),
+          learning_style: formData.learningStyle,
+          availability: availabilityArr,
+          languages: [...formData.languages, ...finalLanguages],
+          bio: "", // Add if you have a field for this
+          profile_picture: "", // Add if you have a field for this
+          experience_level: formData.skillLevel,
+        },
       }
-      localStorage.setItem('menteeProfile', JSON.stringify(finalFormData))
-      window.location.href = "/dashboard/mentee"
+      try {
+        const res = await fetch("http://localhost:5000/api/auth/profile/update", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          credentials: "include",
+          body: JSON.stringify(payload),
+        })
+        const data = await res.json()
+        if (!res.ok) {
+          setError(data.message || "Failed to update profile")
+          setLoading(false)
+          return
+        }
+        setSuccess("Profile completed successfully!")
+        // Optionally store in localStorage
+        localStorage.setItem('menteeProfile', JSON.stringify(payload.profile))
+        window.location.href = "/dashboard/mentee"
+      } catch (err) {
+        setError("Failed to update profile")
+      } finally {
+        setLoading(false)
+      }
     }
   }
 
