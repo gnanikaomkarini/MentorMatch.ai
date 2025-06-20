@@ -12,230 +12,289 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
 import { User, Edit, ArrowLeft, Save, X, Plus } from "lucide-react"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 
 interface MenteeProfile {
-  careerGoals: string[]
-  skillLevel: string
-  learningStyle: string
-  interests: string[]
-  availability: { [day: string]: string[] }
+  goals: string[]
+  experience_level: string
+  learning_style: string
+  interests?: string[]
+  availability: string[]
   languages: string[]
+  bio: string
+  profile_picture: string
 }
 
 interface UserData {
   name: string
   email: string
+  id: string
+  username: string
+  created_at: string
+  mentors: string[]
+  role: string
+  profile: MenteeProfile
+}
+
+const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+const times = ["morning", "afternoon", "evening"]
+
+// Helper for availability as an object { [day]: string[] }
+function getAvailabilityObj(arr: string[]) {
+  const obj: { [day: string]: string[] } = {}
+  arr.forEach((slot) => {
+    const [day, time] = slot.split(" ")
+    if (day && time) {
+      if (!obj[day]) obj[day] = []
+      obj[day].push(time.toLowerCase())
+    }
+  })
+  return obj
+}
+
+function getAvailabilityArr(obj: { [day: string]: string[] }) {
+  return Object.entries(obj).flatMap(([day, times]) =>
+    times.map((time) => `${day} ${time.charAt(0).toUpperCase() + time.slice(1)}`)
+  )
 }
 
 export default function MenteeProfilePage() {
   const [profile, setProfile] = useState<MenteeProfile | null>(null)
   const [userData, setUserData] = useState<UserData | null>(null)
   const [isEditing, setIsEditing] = useState({
-    careerGoals: false,
-    skillLevel: false,
-    learningStyle: false,
-    interests: false,
+    goals: false,
+    experience_level: false,
+    learning_style: false,
     availability: false,
     languages: false,
+    bio: false,
+    profile_picture: false,
   })
   const [editForm, setEditForm] = useState({
-    careerGoals: [] as string[],
-    newCareerGoal: "",
-    skillLevel: "",
-    learningStyle: "",
-    newInterest: "",
-    interests: [] as string[],
-    availability: {} as { [day: string]: string[] },
-    languageInput: "",
+    goals: [] as string[],
+    newGoal: "",
+    experience_level: "",
+    learning_style: "",
+    availability: [] as string[], // e.g. ["Monday Morning", "Tuesday Evening"]
     languages: [] as string[],
+    languageInput: "",
+    bio: "",
+    profile_picture: "",
   })
+  const [editTouched, setEditTouched] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState("")
+  const [success, setSuccess] = useState("")
 
+  // Fetch profile from backend on mount
   useEffect(() => {
-    const storedProfile = localStorage.getItem("menteeProfile")
-    if (storedProfile) {
-      const parsedProfile = JSON.parse(storedProfile)
-      // Handle backward compatibility: convert careerGoal/otherCareerGoal to careerGoals
-      const careerGoals = parsedProfile.careerGoals || (
-        parsedProfile.careerGoal
-          ? [parsedProfile.careerGoal === "other" ? parsedProfile.otherCareerGoal || "other" : parsedProfile.careerGoal]
-          : []
-      )
-      const updatedProfile = { ...parsedProfile, careerGoals }
-      setProfile(updatedProfile)
-      setEditForm({
-        careerGoals,
-        newCareerGoal: "",
-        skillLevel: parsedProfile.skillLevel || "",
-        learningStyle: parsedProfile.learningStyle || "",
-        newInterest: "",
-        interests: parsedProfile.interests || [],
-        availability: parsedProfile.availability || {},
-        languageInput: "",
-        languages: parsedProfile.languages || [],
-      })
-    } else {
-      const mockProfile = {
-        careerGoals: ["frontend"],
-        skillLevel: "beginner",
-        learningStyle: "practical",
-        interests: ["Web Development", "JavaScript", "React"],
-        availability: { "Monday": ["evening"], "Saturday": ["morning"] },
-        languages: ["English", "Hindi"],
+    const fetchProfile = async () => {
+      setLoading(true)
+      setError("")
+      try {
+        const res = await fetch("http://localhost:5000/api/auth/profile", {
+          method: "GET",
+          credentials: "include",
+        })
+        const data = await res.json()
+        if (!res.ok) {
+          setError(data.message || "Failed to fetch profile")
+          setLoading(false)
+          return
+        }
+        setUserData({
+          name: data.user.name,
+          email: data.user.email,
+          id: data.user.id,
+          username: data.user.username,
+          created_at: data.user.created_at,
+          mentors: data.user.mentors,
+          role: data.user.role,
+          profile: data.user.profile,
+        })
+        setProfile(data.user.profile)
+        setEditForm({
+          goals: data.user.profile.goals || [],
+          newGoal: "",
+          experience_level: data.user.profile.experience_level || "",
+          learning_style: data.user.profile.learning_style || "",
+          availability: data.user.profile.availability || [],
+          languages: data.user.profile.languages || [],
+          languageInput: "",
+          bio: data.user.profile.bio || "",
+          profile_picture: data.user.profile.profile_picture || "",
+        })
+      } catch (err) {
+        setError("Failed to fetch profile")
+      } finally {
+        setLoading(false)
       }
-      setProfile(mockProfile)
-      setEditForm({
-        ...mockProfile,
-        newCareerGoal: "",
-        newInterest: "", // Added to fix the error
-        languageInput: "",
-      })
     }
-
-    const storedUserData = localStorage.getItem("userData")
-    if (storedUserData) {
-      setUserData(JSON.parse(storedUserData))
-    } else {
-      setUserData({ name: "User", email: "user@example.com" })
-    }
+    fetchProfile()
   }, [])
 
+  // Toggle edit and set editTouched
   const toggleEdit = (field: keyof typeof isEditing) => {
     setIsEditing((prev) => ({ ...prev, [field]: !prev[field] }))
+    setEditTouched(true)
   }
 
   const updateEditForm = (field: string, value: any) => {
     setEditForm((prev) => ({ ...prev, [field]: value }))
   }
 
-  const saveField = (field: keyof typeof isEditing) => {
-    const newProfile = { ...profile, [field]: editForm[field] } as MenteeProfile
-    setProfile(newProfile)
-    localStorage.setItem("menteeProfile", JSON.stringify(newProfile))
-    toggleEdit(field)
-  }
-
-  const addCareerGoal = () => {
-    if (editForm.newCareerGoal.trim() && !editForm.careerGoals.includes(editForm.newCareerGoal.trim())) {
-      const newCareerGoals = [...editForm.careerGoals, editForm.newCareerGoal.trim()]
-      setEditForm((prev) => ({ ...prev, careerGoals: newCareerGoals, newCareerGoal: "" }))
+  // Add/Remove goals
+  const addGoal = () => {
+    if (editForm.newGoal.trim() && !editForm.goals.includes(editForm.newGoal.trim())) {
+      setEditForm((prev) => ({
+        ...prev,
+        goals: [...prev.goals, prev.newGoal.trim()],
+        newGoal: "",
+      }))
+      setEditTouched(true)
     }
   }
-
-  const removeCareerGoal = (goal: string) => {
+  const removeGoal = (goal: string) => {
     setEditForm((prev) => ({
       ...prev,
-      careerGoals: prev.careerGoals.filter((g) => g !== goal),
+      goals: prev.goals.filter((g) => g !== goal),
     }))
+    setEditTouched(true)
   }
 
-  const addInterest = () => {
-    if (editForm.newInterest.trim() && !editForm.interests.includes(editForm.newInterest.trim())) {
-      const newInterests = [...editForm.interests, editForm.newInterest.trim()]
-      setEditForm((prev) => ({ ...prev, interests: newInterests, newInterest: "" }))
-    }
-  }
-
-  const removeInterest = (interest: string) => {
-    setEditForm((prev) => ({
-      ...prev,
-      interests: prev.interests.filter((i) => i !== interest),
-    }))
-  }
-
-  const toggleAvailability = (day: string, time: string) => {
-    setEditForm((prev) => {
-      const dayAvailability = [...(prev.availability[day] || [])]
-      if (dayAvailability.includes(time)) {
-        return {
-          ...prev,
-          availability: {
-            ...prev.availability,
-            [day]: dayAvailability.filter((t) => t !== time),
-          },
-        }
-      } else {
-        return {
-          ...prev,
-          availability: {
-            ...prev.availability,
-            [day]: [...dayAvailability, time],
-          },
-        }
-      }
-    })
-  }
-
-  const saveAvailability = () => {
-    const newProfile = { ...profile, availability: editForm.availability } as MenteeProfile
-    setProfile(newProfile)
-    localStorage.setItem("menteeProfile", JSON.stringify(newProfile))
-    toggleEdit("availability")
-  }
-
-  const saveLanguages = () => {
+  // Add/Remove languages
+  const addLanguages = () => {
     const newLanguages = editForm.languageInput
       .split(",")
       .map((lang) => lang.trim())
       .filter((lang) => lang && !editForm.languages.includes(lang))
-    const updatedLanguages = [...editForm.languages, ...newLanguages]
-    const newProfile = { ...profile, languages: updatedLanguages } as MenteeProfile
-    setProfile(newProfile)
-    localStorage.setItem("menteeProfile", JSON.stringify(newProfile))
-    setEditForm((prev) => ({ ...prev, languageInput: "", languages: updatedLanguages }))
-    toggleEdit("languages")
+    setEditForm((prev) => ({
+      ...prev,
+      languages: [...prev.languages, ...newLanguages],
+      languageInput: "",
+    }))
+    setEditTouched(true)
+  }
+  const removeLanguage = (lang: string) => {
+    setEditForm((prev) => ({
+      ...prev,
+      languages: prev.languages.filter((l) => l !== lang),
+    }))
+    setEditTouched(true)
   }
 
-  const formatCareerGoals = (goals: string[]) => {
-    const goalMap: { [key: string]: string } = {
-      frontend: "Frontend Developer",
-      backend: "Backend Developer",
-      fullstack: "Full Stack Developer",
-      data: "Data Scientist",
-      ai: "AI/ML Engineer",
-      devops: "DevOps Engineer",
-      mobile: "Mobile Developer",
-      cloud: "Cloud Architect",
-    }
-    return goals.map((goal) => goalMap[goal] || goal)
+  // Add/Remove availability
+  const availabilityObj = getAvailabilityObj(editForm.availability)
+
+  const toggleAvailabilityCheckbox = (day: string, time: string) => {
+    const slot = `${day} ${time.charAt(0).toUpperCase() + time.slice(1)}`
+    setEditForm((prev) => {
+      const exists = prev.availability.includes(slot)
+      let newArr
+      if (exists) {
+        newArr = prev.availability.filter((s) => s !== slot)
+      } else {
+        newArr = [...prev.availability, slot]
+      }
+      return { ...prev, availability: newArr }
+    })
+    setEditTouched(true)
   }
 
-  const formatSkillLevel = (level: string) => {
-    const levelMap: { [key: string]: string } = {
-      beginner: "Beginner - Just starting out",
-      intermediate: "Intermediate - Some experience",
-      advanced: "Advanced - Experienced but looking to grow",
-      expert: "Expert - Looking for specialized guidance",
-    }
-    return levelMap[level] || level
-  }
-
-  const formatLearningStyle = (style: string) => {
-    const levelMap: { [key: string]: string } = {
-      visual: "Visual - Diagrams, videos, demonstrations",
-      reading: "Reading - Documentation and tutorials",
-      practical: "Practical - Building projects",
-      social: "Social - Discussion and collaboration",
-    }
-    return levelMap[style] || style
-  }
-
-  const formatAvailability = (availability: { [day: string]: string[] }) => {
-    const entries = Object.entries(availability).flatMap(([day, times]) =>
-      times.map((time) => `${day} ${time.charAt(0).toUpperCase() + time.slice(1)}`)
+  // Helper to check if any field has changed
+  const isProfileModified = (() => {
+    if (!profile) return false
+    return (
+      JSON.stringify(profile.goals) !== JSON.stringify(editForm.goals) ||
+      profile.experience_level !== editForm.experience_level ||
+      profile.learning_style !== editForm.learning_style ||
+      JSON.stringify(profile.availability) !== JSON.stringify(editForm.availability) ||
+      JSON.stringify(profile.languages) !== JSON.stringify(editForm.languages) ||
+      profile.bio !== editForm.bio ||
+      profile.profile_picture !== editForm.profile_picture
     )
-    return entries.length > 0 ? entries : ["No availability selected"]
+  })()
+
+  // Helper to get the current displayed profile (live preview of edits)
+  const displayedProfile: MenteeProfile | null = profile
+    ? {
+        ...profile,
+        goals: isEditing.goals || editTouched ? editForm.goals : profile.goals,
+        experience_level: isEditing.experience_level || editTouched ? editForm.experience_level : profile.experience_level,
+        learning_style: isEditing.learning_style || editTouched ? editForm.learning_style : profile.learning_style,
+        availability: isEditing.availability || editTouched ? editForm.availability : profile.availability,
+        languages: isEditing.languages || editTouched ? editForm.languages : profile.languages,
+        bio: isEditing.bio || editTouched ? editForm.bio : profile.bio,
+        profile_picture: isEditing.profile_picture || editTouched ? editForm.profile_picture : profile.profile_picture,
+      }
+    : null
+
+  // Save all changes at once
+  const saveAllChanges = async () => {
+    setError("")
+    setSuccess("")
+    try {
+      const res = await fetch("http://localhost:5000/api/auth/profile/update", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify({
+          profile: {
+            goals: editForm.goals,
+            learning_style: editForm.learning_style,
+            availability: editForm.availability,
+            languages: editForm.languages,
+            bio: editForm.bio,
+            profile_picture: editForm.profile_picture,
+            experience_level: editForm.experience_level,
+          },
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setError(data.message || "Failed to update profile")
+        return
+      }
+      setProfile(data.user.profile)
+      setUserData((prev) => (prev ? { ...prev, profile: data.user.profile } : null))
+      setIsEditing({
+        goals: false,
+        experience_level: false,
+        learning_style: false,
+        availability: false,
+        languages: false,
+        bio: false,
+        profile_picture: false,
+      })
+      setEditTouched(false)
+      setSuccess("Profile updated successfully!")
+    } catch (err) {
+      setError("Failed to update profile")
+    }
   }
 
-  const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
-  const times = ["morning", "afternoon", "evening"]
-
-  if (!profile || !userData) {
+  if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
         <Card className="w-full max-w-md">
           <CardHeader>
             <CardTitle>Loading Profile...</CardTitle>
             <CardDescription>Please wait while we fetch your profile.</CardDescription>
+          </CardHeader>
+        </Card>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <CardTitle>Error</CardTitle>
+            <CardDescription>{error}</CardDescription>
           </CardHeader>
         </Card>
       </div>
@@ -257,58 +316,52 @@ export default function MenteeProfilePage() {
         <Card className="w-full">
           <CardHeader className="flex flex-col sm:flex-row items-center sm:items-start gap-4">
             <Avatar className="h-24 w-24">
+              <AvatarImage src={displayedProfile?.profile_picture || undefined} />
               <AvatarFallback className="bg-gray-200 dark:bg-gray-700">
                 <User className="h-12 w-12 text-gray-600 dark:text-gray-300" />
               </AvatarFallback>
             </Avatar>
             <div className="text-center sm:text-left">
-              <CardTitle className="text-2xl font-bold">{userData.name}</CardTitle>
-              <CardDescription className="text-gray-500 dark:text-gray-400">{userData.email}</CardDescription>
+              <CardTitle className="text-2xl font-bold">{userData?.name}</CardTitle>
+              <CardDescription className="text-gray-500 dark:text-gray-400">{userData?.email}</CardDescription>
             </div>
           </CardHeader>
           <CardContent className="space-y-6">
-            {/* Career Goals */}
+            {success && (
+              <Alert variant="default" className="bg-green-100 border-green-400 text-green-800">
+                {success}
+              </Alert>
+            )}
+            {/* Goals */}
             <div className="flex items-center gap-4">
               <div className="flex-1">
-                <Label className="text-sm font-medium text-gray-700 dark:text-gray-300">Career Goals</Label>
-                {isEditing.careerGoals ? (
+                <Label className="text-sm font-medium text-gray-700 dark:text-gray-300">Goals</Label>
+                {isEditing.goals ? (
                   <div className="space-y-2 mt-2">
                     <div className="flex gap-2">
-                      <Select
-                        value={editForm.newCareerGoal}
-                        onValueChange={(value) => updateEditForm("newCareerGoal", value)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select a career goal" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="frontend">Frontend Developer</SelectItem>
-                          <SelectItem value="backend">Backend Developer</SelectItem>
-                          <SelectItem value="fullstack">Full Stack Developer</SelectItem>
-                          <SelectItem value="data">Data Scientist</SelectItem>
-                          <SelectItem value="ai">AI/ML Engineer</SelectItem>
-                          <SelectItem value="devops">DevOps Engineer</SelectItem>
-                          <SelectItem value="mobile">Mobile Developer</SelectItem>
-                          <SelectItem value="cloud">Cloud Architect</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <Button type="button" onClick={addCareerGoal} variant="secondary" size="sm">
+                      <Input
+                        value={editForm.newGoal}
+                        onChange={(e) => updateEditForm("newGoal", e.target.value)}
+                        placeholder="e.g. Become a data scientist"
+                        onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addGoal())}
+                      />
+                      <Button type="button" onClick={addGoal} variant="secondary" size="sm">
                         <Plus className="h-4 w-4" />
                       </Button>
-                      <Button onClick={() => saveField("careerGoals")} size="sm">
+                      <Button onClick={() => setIsEditing((prev) => ({ ...prev, goals: false }))} size="sm">
                         <Save className="h-4 w-4" />
                       </Button>
                     </div>
                     <div className="flex flex-wrap gap-2">
-                      {editForm.careerGoals.map((goal) => (
+                      {editForm.goals.map((goal) => (
                         <div
                           key={goal}
                           className="bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200 px-3 py-1 rounded-full flex items-center gap-1"
                         >
-                          {formatCareerGoals([goal])[0]}
+                          {goal}
                           <button
                             type="button"
-                            onClick={() => removeCareerGoal(goal)}
+                            onClick={() => removeGoal(goal)}
                             className="text-purple-600 dark:text-purple-300 hover:text-purple-800"
                           >
                             <X className="h-3 w-3" />
@@ -319,8 +372,8 @@ export default function MenteeProfilePage() {
                   </div>
                 ) : (
                   <div className="flex flex-wrap gap-2 mt-2">
-                    {profile.careerGoals.length > 0 ? (
-                      formatCareerGoals(profile.careerGoals).map((goal) => (
+                    {displayedProfile?.goals?.length > 0 ? (
+                      displayedProfile.goals.map((goal) => (
                         <Badge
                           key={goal}
                           variant="secondary"
@@ -330,30 +383,29 @@ export default function MenteeProfilePage() {
                         </Badge>
                       ))
                     ) : (
-                      <p className="text-gray-500 dark:text-gray-400">No career goals selected</p>
+                      <p className="text-gray-500 dark:text-gray-400">No goals selected</p>
                     )}
                   </div>
                 )}
               </div>
-              {!isEditing.careerGoals && (
-                <Button variant="ghost" size="sm" onClick={() => toggleEdit("careerGoals")}>
+              {!isEditing.goals && (
+                <Button variant="ghost" size="sm" onClick={() => toggleEdit("goals")}>
                   <Edit className="h-4 w-4" />
                 </Button>
               )}
             </div>
-
-            {/* Skill Level */}
+            {/* Experience Level */}
             <div className="flex items-center gap-4">
               <div className="flex-1">
-                <Label className="text-sm font-medium text-gray-700 dark:text-gray-300">Skill Level</Label>
-                {isEditing.skillLevel ? (
+                <Label className="text-sm font-medium text-gray-700 dark:text-gray-300">Experience Level</Label>
+                {isEditing.experience_level ? (
                   <div className="flex gap-2 mt-2">
                     <Select
-                      value={editForm.skillLevel}
-                      onValueChange={(value) => updateEditForm("skillLevel", value)}
+                      value={editForm.experience_level}
+                      onValueChange={(value) => updateEditForm("experience_level", value)}
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder="Select your skill level" />
+                        <SelectValue placeholder="Select your experience level" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="beginner">Beginner</SelectItem>
@@ -362,87 +414,138 @@ export default function MenteeProfilePage() {
                         <SelectItem value="expert">Expert</SelectItem>
                       </SelectContent>
                     </Select>
-                    <Button onClick={() => saveField("skillLevel")} size="sm">
+                    <Button onClick={() => setIsEditing((prev) => ({ ...prev, experience_level: false }))} size="sm">
                       <Save className="h-4 w-4" />
                     </Button>
                   </div>
                 ) : (
-                  <p className="text-lg text-gray-900 dark:text-gray-100">{formatSkillLevel(profile.skillLevel)}</p>
+                  <p className="text-lg text-gray-900 dark:text-gray-100">{displayedProfile?.experience_level}</p>
                 )}
               </div>
-              {!isEditing.skillLevel && (
-                <Button variant="ghost" size="sm" onClick={() => toggleEdit("skillLevel")}>
+              {!isEditing.experience_level && (
+                <Button variant="ghost" size="sm" onClick={() => toggleEdit("experience_level")}>
                   <Edit className="h-4 w-4" />
                 </Button>
               )}
             </div>
-
             {/* Learning Style */}
             <div className="flex items-center gap-4">
               <div className="flex-1">
                 <Label className="text-sm font-medium text-gray-700 dark:text-gray-300">Learning Style</Label>
-                {isEditing.learningStyle ? (
+                {isEditing.learning_style ? (
                   <div className="flex gap-2 mt-2">
                     <Select
-                      value={editForm.learningStyle}
-                      onValueChange={(value) => updateEditForm("learningStyle", value)}
+                      value={editForm.learning_style}
+                      onValueChange={(value) => updateEditForm("learning_style", value)}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Select your learning style" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="visual">Visual (Diagrams, Videos)</SelectItem>
-                        <SelectItem value="reading">Reading (Documentation, Tutorials)</SelectItem>
-                        <SelectItem value="practical">Practical (Building Projects)</SelectItem>
-                        <SelectItem value="social">Social (Discussion, Collaboration)</SelectItem>
+                        <SelectItem value="Visual">Visual (Diagrams, Videos)</SelectItem>
+                        <SelectItem value="Reading">Reading (Documentation, Tutorials)</SelectItem>
+                        <SelectItem value="Hands-on projects">Practical (Building Projects)</SelectItem>
+                        <SelectItem value="Social">Social (Discussion, Collaboration)</SelectItem>
                       </SelectContent>
                     </Select>
-                    <Button onClick={() => saveField("learningStyle")} size="sm">
+                    <Button onClick={() => setIsEditing((prev) => ({ ...prev, learning_style: false }))} size="sm">
                       <Save className="h-4 w-4" />
                     </Button>
                   </div>
                 ) : (
-                  <p className="text-lg text-gray-900 dark:text-gray-100">{formatLearningStyle(profile.learningStyle)}</p>
+                  <p className="text-lg text-gray-900 dark:text-gray-100">{displayedProfile?.learning_style}</p>
                 )}
               </div>
-              {!isEditing.learningStyle && (
-                <Button variant="ghost" size="sm" onClick={() => toggleEdit("learningStyle")}>
+              {!isEditing.learning_style && (
+                <Button variant="ghost" size="sm" onClick={() => toggleEdit("learning_style")}>
                   <Edit className="h-4 w-4" />
                 </Button>
               )}
             </div>
-
-            {/* Interests */}
+            {/* Availability */}
+            <div className="mb-6 flex items-start gap-4">
+              <div className="flex-1">
+                <Label className="text-lg font-semibold">When are you available for mentoring?</Label>
+                <div className="text-sm text-gray-500 dark:text-gray-400 mb-2">
+                  Select available days and times (Morning: 8 AM–12 PM, Afternoon: 12 PM–5 PM, Evening: 5 PM–10 PM)
+                </div>
+                {isEditing.availability ? (
+                  <div className="space-y-2">
+                    {days.map((day) => (
+                      <div key={day} className="flex items-center gap-4">
+                        <span className="w-24">{day}</span>
+                        {times.map((time) => (
+                          <label key={time} className="flex items-center gap-1">
+                            <Checkbox
+                              checked={availabilityObj[day]?.includes(time)}
+                              onCheckedChange={() => toggleAvailabilityCheckbox(day, time)}
+                            />
+                            <span className="capitalize">{time}</span>
+                          </label>
+                        ))}
+                      </div>
+                    ))}
+                    <Button onClick={() => setIsEditing((prev) => ({ ...prev, availability: false }))} size="sm" className="mt-2">
+                      <Save className="h-4 w-4 mr-1" /> Save
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {displayedProfile?.availability?.length > 0 ? (
+                      displayedProfile.availability.map((slot) => (
+                        <Badge
+                          key={slot}
+                          variant="outline"
+                          className="text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600"
+                        >
+                          {slot}
+                        </Badge>
+                      ))
+                    ) : (
+                      <p className="text-gray-500 dark:text-gray-400">No availability selected</p>
+                    )}
+                  </div>
+                )}
+              </div>
+              {!isEditing.availability && (
+                <div className="flex items-start pt-7">
+                  <Button variant="ghost" size="sm" onClick={() => toggleEdit("availability")}>
+                    <Edit className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
+            </div>
+            {/* Languages */}
             <div className="flex items-center gap-4">
               <div className="flex-1">
-                <Label className="text-sm font-medium text-gray-700 dark:text-gray-300">Interests</Label>
-                {isEditing.interests ? (
+                <Label className="text-sm font-medium text-gray-700 dark:text-gray-300">Languages</Label>
+                {isEditing.languages ? (
                   <div className="space-y-2 mt-2">
                     <div className="flex gap-2">
                       <Input
-                        value={editForm.newInterest}
-                        onChange={(e) => updateEditForm("newInterest", e.target.value)}
-                        placeholder="e.g. Web Development, UI/UX"
-                        onKeyPress={(e) => e.key === "Enter" && addInterest()}
+                        value={editForm.languageInput}
+                        onChange={(e) => updateEditForm("languageInput", e.target.value)}
+                        placeholder="e.g., English, Hindi"
+                        onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addLanguages())}
                       />
-                      <Button type="button" onClick={addInterest} variant="secondary" size="sm">
+                      <Button type="button" onClick={addLanguages} variant="secondary" size="sm">
                         <Plus className="h-4 w-4" />
                       </Button>
-                      <Button onClick={() => saveField("interests")} size="sm">
+                      <Button onClick={() => setIsEditing((prev) => ({ ...prev, languages: false }))} size="sm">
                         <Save className="h-4 w-4" />
                       </Button>
                     </div>
                     <div className="flex flex-wrap gap-2">
-                      {editForm.interests.map((interest) => (
+                      {editForm.languages.map((language) => (
                         <div
-                          key={interest}
-                          className="bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200 px-3 py-1 rounded-full flex items-center gap-1"
+                          key={language}
+                          className="bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-3 py-1 rounded-full flex items-center gap-1"
                         >
-                          {interest}
+                          {language}
                           <button
                             type="button"
-                            onClick={() => removeInterest(interest)}
-                            className="text-purple-600 dark:text-purple-300 hover:text-purple-800"
+                            onClick={() => removeLanguage(language)}
+                            className="text-blue-600 dark:text-blue-300 hover:text-blue-800"
                           >
                             <X className="h-3 w-3" />
                           </button>
@@ -452,99 +555,8 @@ export default function MenteeProfilePage() {
                   </div>
                 ) : (
                   <div className="flex flex-wrap gap-2 mt-2">
-                    {profile.interests.length > 0 ? (
-                      profile.interests.map((interest) => (
-                        <Badge
-                          key={interest}
-                          variant="secondary"
-                          className="bg-purple-100 text-purple-600 dark:bg-purple-900 dark:text-purple-300"
-                        >
-                          {interest}
-                        </Badge>
-                      ))
-                    ) : (
-                      <p className="text-gray-500 dark:text-gray-400">No interests selected</p>
-                    )}
-                  </div>
-                )}
-              </div>
-              {!isEditing.interests && (
-                <Button variant="ghost" size="sm" onClick={() => toggleEdit("interests")}>
-                  <Edit className="h-4 w-4" />
-                </Button>
-              )}
-            </div>
-
-            {/* Availability */}
-            <div className="flex items-center gap-4">
-              <div className="flex-1">
-                <Label className="text-sm font-medium text-gray-700 dark:text-gray-300">Availability</Label>
-                {isEditing.availability ? (
-                  <div className="space-y-4 mt-2">
-                    {days.map((day) => (
-                      <div key={day} className="flex items-center space-x-4">
-                        <Label className="w-24">{day}</Label>
-                        <div className="flex space-x-2">
-                          {times.map((time) => (
-                            <div key={time} className="flex items-center space-x-1">
-                              <Checkbox
-                                id={`${day}-${time}`}
-                                checked={(editForm.availability[day] || []).includes(time)}
-                                onCheckedChange={() => toggleAvailability(day, time)}
-                              />
-                              <Label htmlFor={`${day}-${time}`}>
-                                {time.charAt(0).toUpperCase() + time.slice(1)}
-                              </Label>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                    <Button onClick={saveAvailability} size="sm">
-                      <Save className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {formatAvailability(profile.availability).map((slot) => (
-                      <Badge
-                        key={slot}
-                        variant="outline"
-                        className="text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600"
-                      >
-                        {slot}
-                      </Badge>
-                    ))}
-                  </div>
-                )}
-              </div>
-              {!isEditing.availability && (
-                <Button variant="ghost" size="sm" onClick={() => toggleEdit("availability")}>
-                  <Edit className="h-4 w-4" />
-                </Button>
-              )}
-            </div>
-
-            {/* Languages */}
-            <div className="flex items-center gap-4">
-              <div className="flex-1">
-                <Label className="text-sm font-medium text-gray-700 dark:text-gray-300">Preferred Learning Languages</Label>
-                {isEditing.languages ? (
-                  <div className="flex gap-2 mt-2">
-                    <Textarea
-                      value={editForm.languageInput}
-                      onChange={(e) => updateEditForm("languageInput", e.target.value)}
-                      placeholder="e.g., English, Hindi"
-                      rows={3}
-                    />
-                    <Button onClick={saveLanguages} size="sm">
-                      <Save className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {profile.languages.length > 0 ? (
-                      profile.languages.map((language) => (
+                    {displayedProfile?.languages?.length > 0 ? (
+                      displayedProfile.languages.map((language) => (
                         <Badge
                           key={language}
                           variant="secondary"
@@ -565,6 +577,68 @@ export default function MenteeProfilePage() {
                 </Button>
               )}
             </div>
+            {/* Bio */}
+            <div className="flex items-center gap-4">
+              <div className="flex-1">
+                <Label className="text-sm font-medium text-gray-700 dark:text-gray-300">Bio</Label>
+                {isEditing.bio ? (
+                  <div className="flex gap-2 mt-2">
+                    <Textarea
+                      value={editForm.bio}
+                      onChange={(e) => updateEditForm("bio", e.target.value)}
+                      placeholder="Share your background..."
+                      rows={4}
+                    />
+                    <Button onClick={() => setIsEditing((prev) => ({ ...prev, bio: false }))} size="sm">
+                      <Save className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ) : (
+                  <p className="text-lg text-gray-900 dark:text-gray-100">{displayedProfile?.bio}</p>
+                )}
+              </div>
+              {!isEditing.bio && (
+                <Button variant="ghost" size="sm" onClick={() => toggleEdit("bio")}>
+                  <Edit className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
+            {/* Profile Picture */}
+            <div className="flex items-center gap-4">
+              <div className="flex-1">
+                <Label className="text-sm font-medium text-gray-700 dark:text-gray-300">Profile Picture URL</Label>
+                {isEditing.profile_picture ? (
+                  <div className="flex gap-2 mt-2">
+                    <Input
+                      value={editForm.profile_picture}
+                      onChange={(e) => updateEditForm("profile_picture", e.target.value)}
+                      placeholder="https://example.com/yourphoto.jpg"
+                    />
+                    <Button onClick={() => setIsEditing((prev) => ({ ...prev, profile_picture: false }))} size="sm">
+                      <Save className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ) : (
+                  <p className="text-lg text-gray-900 dark:text-gray-100">{displayedProfile?.profile_picture}</p>
+                )}
+              </div>
+              {!isEditing.profile_picture && (
+                <Button variant="ghost" size="sm" onClick={() => toggleEdit("profile_picture")}>
+                  <Edit className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
+            {/* Save Changes button */}
+            {(isProfileModified || editTouched) && (
+              <div className="flex justify-end">
+                <Button
+                  className="bg-purple-600 hover:bg-purple-700"
+                  onClick={saveAllChanges}
+                >
+                  Save Changes
+                </Button>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
