@@ -22,17 +22,29 @@ def match_mentors():
     mentee_skills = profile.get('goals', []) 
     mentee_experience = profile.get('experience_level', '')
     
-
     if not mentee_skills:
         return jsonify({'message': 'User profile goals are required for matching'}), 400
     
     try:
         match_result = match_mentor_mentee(mentee_skills, mentee_experience)
-        UserModel.link_mentor_and_mentee(match_result['mentor'], current_user.get('_id'))
+        if not match_result:
+            return jsonify({'message': 'No mentor match found'}), 404
+
+        mentor_id = match_result['mentor']
+        mentor = UserModel.get_user_by_id(mentor_id)
+        if not mentor:
+            return jsonify({'message': 'Mentor not found'}), 404
+
+        UserModel.link_mentor_and_mentee(mentor_id, current_user.get('_id'))
 
         return jsonify({
             'message': 'Mentor matching successful',
-            'matches': match_result
+            'matches': {
+                'mentor': mentor_id,
+                'reason': match_result['reason'],
+                'name': mentor.get('name', ''),
+                'username': mentor.get('username', '')
+            }
         }), 200
     except Exception as e:
         return jsonify({'message': f'Error matching mentors: {str(e)}'}), 500
