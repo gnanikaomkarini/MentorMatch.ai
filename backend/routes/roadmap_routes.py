@@ -279,3 +279,67 @@ def submit_mcq_score(roadmap_id, module_index, current_user):
     if best_score is None:
         return jsonify({"message": "Not found"}), 404
     return jsonify({"message": "Score submitted", "best_score": best_score})
+
+@roadmap_bp.route('/<roadmap_id>/<int:module_index>/subtopics/complete', methods=['POST'])
+@token_required
+def complete_subtopics(roadmap_id, module_index, current_user):
+    data = request.get_json()
+    completed_subtopics = data.get("completed_subtopics", [])
+    if not isinstance(completed_subtopics, list) or not completed_subtopics:
+        return jsonify({"message": "completed_subtopics must be a non-empty list"}), 400
+
+    roadmap = roadmaps.find_one({'_id': ObjectId(roadmap_id)})
+    if not roadmap or int(module_index) >= len(roadmap.get('modules', [])):
+        return jsonify({"message": "Roadmap or module not found"}), 404
+
+    module = roadmap['modules'][int(module_index)]
+    updated = False
+
+    for subtopic in module.get('subtopics', []):
+        if subtopic['title'] in completed_subtopics:
+            # Mark all resources in this subtopic as completed
+            for resource in subtopic.get('resources', []):
+                if not resource.get('completed', False):
+                    resource['completed'] = True
+                    updated = True
+
+    if updated:
+        # Update the module in the DB
+        roadmaps.update_one(
+            {'_id': ObjectId(roadmap_id)},
+            {'$set': {f'modules.{module_index}': module}}
+        )
+        return jsonify({"message": "Selected subtopics marked as completed"}), 200
+    else:
+        return jsonify({"message": "No subtopics were updated"}), 200
+
+@roadmap_bp.route('/<roadmap_id>/<int:module_index>/resources/complete', methods=['POST'])
+@token_required
+def complete_resources(roadmap_id, module_index, current_user):
+    data = request.get_json()
+    completed_resources = data.get("completed_resources", [])
+    if not isinstance(completed_resources, list) or not completed_resources:
+        return jsonify({"message": "completed_resources must be a non-empty list"}), 400
+
+    roadmap = roadmaps.find_one({'_id': ObjectId(roadmap_id)})
+    if not roadmap or int(module_index) >= len(roadmap.get('modules', [])):
+        return jsonify({"message": "Roadmap or module not found"}), 404
+
+    module = roadmap['modules'][int(module_index)]
+    updated = False
+
+    for subtopic in module.get('subtopics', []):
+        for resource in subtopic.get('resources', []):
+            if resource['title'] in completed_resources and not resource.get('completed', False):
+                resource['completed'] = True
+                updated = True
+
+    if updated:
+        # Update the module in the DB
+        roadmaps.update_one(
+            {'_id': ObjectId(roadmap_id)},
+            {'$set': {f'modules.{module_index}': module}}
+        )
+        return jsonify({"message": "Selected resources marked as completed"}), 200
+    else:
+        return jsonify({"message": "No resources were updated"}), 200
