@@ -15,9 +15,11 @@ import NotificationDropdown from "@/components/notification-dropdown"
 interface DashboardLayoutProps {
   children: React.ReactNode
   userRole: "mentee" | "mentor"
+  userName: string
+  userEmail: string
 }
 
-export default function DashboardLayout({ children, userRole }: DashboardLayoutProps) {
+export default function DashboardLayout({ children, userRole, userName, userEmail }: DashboardLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const pathname = usePathname()
   const router = useRouter()
@@ -27,30 +29,32 @@ export default function DashboardLayout({ children, userRole }: DashboardLayoutP
     { name: "Roadmap", href: "/roadmap", icon: <BarChart className="h-5 w-5" /> },
     { name: "Chat", href: "/chat", icon: <MessageSquare className="h-5 w-5" /> },
     { name: "Schedule", href: "/schedule", icon: <Calendar className="h-5 w-5" /> },
-    { name: "Interview", href: "/interview", icon: <Video className="h-5 w-5" /> },
     { name: "Profile", href: "/profile/mentee", icon: <User className="h-5 w-5" /> },
   ]
 
   const mentorNavItems = [
     { name: "Dashboard", href: "/dashboard/mentor", icon: <Home className="h-5 w-5" /> },
-    { name: "Mentees", href: "/mentees", icon: <Users className="h-5 w-5" /> },
     { name: "Chat", href: "/chat", icon: <MessageSquare className="h-5 w-5" /> },
     { name: "Schedule", href: "/schedule", icon: <Calendar className="h-5 w-5" /> },
-    { name: "Resources", href: "/resources", icon: <BarChart className="h-5 w-5" /> },
     { name: "Profile", href: "/profile/mentor", icon: <User className="h-5 w-5" /> },
   ]
 
   const navItems = userRole === "mentee" ? menteeNavItems : mentorNavItems
-  const userName = userRole === "mentee" ? "Sarah Kim" : "Dr. Alex Johnson"
-  const userEmail = userRole === "mentee" ? "sarah@example.com" : "alex@example.com"
 
   // Handle logout functionality
-  const handleLogout = () => {
-    // Clear localStorage (adjust keys based on your app's usage)
-    localStorage.removeItem("menteeProfile")
-    localStorage.removeItem("mentorProfile")
-    // Redirect to login or home page
-    router.push("/login") // Adjust to "/" if no login page exists
+  const handleLogout = async () => {
+    try {
+      await fetch("http://localhost:5000/api/auth/logout", {
+        method: "POST",
+        credentials: "include",
+      })
+    } catch (e) {
+      // Optionally handle error
+    } finally {
+      localStorage.removeItem("menteeProfile")
+      localStorage.removeItem("mentorProfile")
+      router.push("/login") // Or "/" if you want
+    }
   }
 
   return (
@@ -104,7 +108,7 @@ export default function DashboardLayout({ children, userRole }: DashboardLayoutP
             <div className="flex items-center">
               <Avatar className="h-8 w-8 mr-3">
                 <AvatarImage src="/placeholder.svg" alt={userName} />
-                <AvatarFallback>{userName.charAt(0)}</AvatarFallback>
+                <AvatarFallback>{(userName || "U").charAt(0)}</AvatarFallback>
               </Avatar>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{userName}</p>
@@ -147,7 +151,7 @@ export default function DashboardLayout({ children, userRole }: DashboardLayoutP
             <div className="flex items-center">
               <Avatar className="h-8 w-8 mr-3">
                 <AvatarImage src="/placeholder.svg" alt={userName} />
-                <AvatarFallback>{userName.charAt(0)}</AvatarFallback>
+                <AvatarFallback>{(userName || "U").charAt(0)}</AvatarFallback>
               </Avatar>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{userName}</p>
