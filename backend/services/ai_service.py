@@ -6,6 +6,9 @@ import json
 import re
 from utils.gemini import GeminiLLM
 from utils.roadmap_utils import create_roadmap
+from utils.audio_utils import transcribe, tts
+from utils.interview_utils import generate_next_question
+
 load_dotenv()
 
 
@@ -65,92 +68,13 @@ def match_mentor_mentee(mentee_skills: List[str], mentee_experience: str) -> Opt
         return None
 
     
-
 def generate_roadmap(skill):
     return create_roadmap(skill)
 
-def generate_interview_questions(skill, level, transcript=None, module=None):
-    """
-    Generate interview questions using AI.
-    
-    Args:
-        skill (str): Skill to test
-        level (str): Experience level
-        transcript (str, optional): Video transcript to use as context
-        module (str, optional): Specific module to focus on
-        
-    Returns:
-        list: List of interview questions
-    """
-    context = f"Skill: {skill}, Level: {level}"
-    if module:
-        context += f", Module: {module}"
-    
-    if transcript:
-        prompt = f"Based on the following transcript and {context}, generate 5 interview questions to test the knowledge. Include both theoretical and practical questions.\n\nTranscript: {transcript[:2000]}..."
-    else:
-        prompt = f"Generate 5 interview questions to test knowledge of {context}. Include both theoretical and practical questions."
-    
-    response = openai.ChatCompletion.create(
-        model="gpt-4",
-        messages=[
-            {"role": "system", "content": "You are an AI interview question generator. Your task is to create relevant and challenging questions to test a person's knowledge on a specific skill."},
-            {"role": "user", "content": prompt}
-        ]
-    )
-    
-    # Parse the response and return the questions
-    try:
-        content = response.choices[0].message.content
-        
-        # Extract questions from the response
-        import re
-        questions = []
-        
-        # Try to parse numbered questions (1. Question)
-        numbered_questions = re.findall(r'\d+\.\s+(.*?)(?=\n\d+\.|\Z)', content, re.DOTALL)
-        
-        if numbered_questions:
-            for q in numbered_questions:
-                q = q.strip()
-                if q:
-                    questions.append({
-                        "question": q,
-                        "type": "open_ended"
-                    })
-        else:
-            # Fallback to splitting by newlines
-            lines = content.split('\n')
-            for line in lines:
-                line = line.strip()
-                if line and not line.startswith('Question') and len(line) > 10:
-                    questions.append({
-                        "question": line,
-                        "type": "open_ended"
-                    })
-        
-        return questions[:5]  # Limit to 5 questions
-    except:
-        # Fallback to a simple response if parsing fails
-        return [
-            {
-                "question": f"What are the key concepts of {skill}?",
-                "type": "open_ended"
-            },
-            {
-                "question": f"Explain how you would implement {skill} in a real-world scenario.",
-                "type": "open_ended"
-            },
-            {
-                "question": f"What are the best practices when working with {skill}?",
-                "type": "open_ended"
-            },
-            {
-                "question": f"Describe a challenge you faced when using {skill} and how you overcame it.",
-                "type": "open_ended"
-            },
-            {
-                "question": f"How would you explain {skill} to someone with no technical background?",
-                "type": "open_ended"
-            }
-        ]
+def generate_interview_questions(audio_path, history_json, goal, theme):
+    user_answer = transcribe(audio_path)
+    history_json = history_json + "Last answer: " + user_answer
+
+    next_question = generate_next_question(theme, history_json, goal)
+    tts(next_question)
+    return user_answer, next_question
