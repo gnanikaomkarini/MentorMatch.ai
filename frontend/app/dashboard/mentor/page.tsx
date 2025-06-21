@@ -19,7 +19,7 @@ import {
   TabsList,
   TabsTrigger
 } from "@/components/ui/tabs"
-import { Calendar, CheckCircle, Clock, MessageSquare, Users } from "lucide-react"
+import { Calendar, Clock, MessageSquare, Users } from "lucide-react"
 import Link from "next/link"
 import { useState } from "react"
 
@@ -27,10 +27,10 @@ export default function MentorDashboard() {
   const [activeTab, setActiveTab] = useState("overview");
 
   const mentees = [
-    { id: 1, name: "Sarah Kim", role: "Full Stack Web Development", progress: 35, avatar: "/placeholder.svg", lastActive: "Today" },
-    { id: 2, name: "Michael Chen", role: "Data Science", progress: 65, avatar: "/placeholder.svg", lastActive: "Yesterday" },
-    { id: 3, name: "Jessica Taylor", role: "Mobile Development", progress: 20, avatar: "/placeholder.svg", lastActive: "3 days ago" },
-    { id: 4, name: "David Wilson", role: "DevOps Engineering", progress: 45, avatar: "/placeholder.svg", lastActive: "Today" },
+    { id: 1, name: "Sarah Kim", role: "Full Stack Web Development", progress: 35, avatar: "/placeholder.svg" },
+    { id: 2, name: "Michael Chen", role: "Data Science", progress: 65, avatar: "/placeholder.svg"},
+    { id: 3, name: "Jessica Taylor", role: "Mobile Development", progress: 20, avatar: "/placeholder.svg"},
+    { id: 4, name: "David Wilson", role: "DevOps Engineering", progress: 45, avatar: "/placeholder.svg"},
   ];
 
   const upcomingMeetings = [
@@ -65,7 +65,6 @@ export default function MentorDashboard() {
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="mentees">Mentees</TabsTrigger>
             <TabsTrigger value="meetings">Meetings</TabsTrigger>
-            <TabsTrigger value="resources">Resources</TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="space-y-4">
@@ -153,7 +152,6 @@ export default function MentorDashboard() {
                           </Avatar>
                           <div>
                             <p className="font-medium">{mentee.name}</p>
-                            <p className="text-xs text-gray-500 dark:text-gray-400">Last active: {mentee.lastActive}</p>
                           </div>
                         </div>
                         <Badge className={mentee.progress < 30 ? "bg-orange-500" : "bg-green-500"}>
@@ -299,43 +297,6 @@ export default function MentorDashboard() {
                     <div className="flex items-center text-sm text-gray-500 dark:text-gray-400 mt-1">
                       <Clock className="mr-1 h-4 w-4" />
                       <span>4:00 PM - 5:00 PM</span>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="resources" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Your Resources</CardTitle>
-                <CardDescription>Materials you've shared with mentees</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="p-4 border rounded-lg">
-                    <p className="font-medium">React Best Practices Guide</p>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">Shared with: Sarah Kim, Jessica Taylor</p>
-                    <div className="flex items-center text-sm text-gray-500 dark:text-gray-400 mt-1">
-                      <CheckCircle className="mr-1 h-4 w-4" />
-                      <span>Added on June 5, 2025</span>
-                    </div>
-                  </div>
-                  <div className="p-4 border rounded-lg">
-                    <p className="font-medium">Data Visualization Techniques</p>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">Shared with: Michael Chen</p>
-                    <div className="flex items-center text-sm text-gray-500 dark:text-gray-400 mt-1">
-                      <CheckCircle className="mr-1 h-4 w-4" />
-                      <span>Added on May 28, 2025</span>
-                    </div>
-                  </div>
-                  <div className="p-4 border rounded-lg">
-                    <p className="font-medium">Mobile App Development Roadmap</p>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">Shared with: Jessica Taylor</p>
-                    <div className="flex items-center text-sm text-gray-500 dark:text-gray-400 mt-1">
-                      <CheckCircle className="mr-1 h-4 w-4" />
-                      <span>Added on May 20, 2025</span>
                     </div>
                   </div>
                 </div>

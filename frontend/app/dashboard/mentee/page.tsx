@@ -28,37 +28,52 @@ import {
   Video,
 } from "lucide-react"
 import Link from "next/link"
-import { useState } from "react"
+import { useRouter } from "next/navigation"
+import { useEffect, useState } from "react"
 
 export default function MenteeDashboard() {
   const [activeTab, setActiveTab] = useState("overview")
+  const [userData, setUserData] = useState<any>(null)
+  const [mentorData, setMentorData] = useState<any>(null)
+  const router = useRouter()
 
-  const mentors = [
-    {
-      id: 1,
-      name: "Dr. Alex Johnson",
-      role: "Senior AI Engineer",
-      avatar: "/placeholder.svg?height=40&width=40",
-      matchScore: 95,
-      status: "online",
-    },
-    {
-      id: 2,
-      name: "Sarah Williams",
-      role: "Full Stack Developer",
-      avatar: "/placeholder.svg?height=40&width=40",
-      matchScore: 87,
-      status: "offline",
-    },
-    {
-      id: 3,
-      name: "Michael Chen",
-      role: "Data Scientist",
-      avatar: "/placeholder.svg?height=40&width=40",
-      matchScore: 82,
-      status: "offline",
-    },
-  ]
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        const token = localStorage.getItem("token") // Make sure token is stored here after login
+        const res = await fetch("http://localhost:5000/api/dashboard", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        })
+
+        if (!res.ok) {
+          console.error("Failed to fetch dashboard data")
+          return
+        }
+
+        const data = await res.json()
+        setUserData(data.user)
+
+        // Fetch mentor if assigned
+        if (data.user?.mentors?.length > 0) {
+          const mentorId = data.user.mentors[0]
+          const mentorRes = await fetch(`http://localhost:5000/api/mentors/${mentorId}`, {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          })
+          const mentor = await mentorRes.json()
+          setMentorData(mentor)
+        }
+
+      } catch (error) {
+        console.error("Error fetching dashboard:", error)
+      }
+    }
+
+    fetchDashboardData()
+  }, [])
 
   const roadmap = {
     title: "Full Stack Web Development",
@@ -87,15 +102,14 @@ export default function MenteeDashboard() {
   const recentMessages = [
     {
       id: 1,
-      sender: "Dr. Alex Johnson",
+      sender: mentorData?.name || "Your Mentor",
       message: "How are you progressing with the React exercises?",
       time: "Yesterday",
     },
     {
       id: 2,
       sender: "AI Assistant",
-      message:
-        "I've analyzed your latest quiz results. Would you like some additional resources on React hooks?",
+      message: "Would you like some additional resources on React hooks?",
       time: "2 days ago",
     },
   ]
@@ -106,7 +120,9 @@ export default function MenteeDashboard() {
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Welcome back, Sarah!</h1>
+            <h1 className="text-3xl font-bold tracking-tight">
+              Welcome back, {userData?.name || "Mentee"}!
+            </h1>
             <p className="text-gray-500 dark:text-gray-400">
               Continue your learning journey. You've made great progress this week!
             </p>
@@ -121,22 +137,31 @@ export default function MenteeDashboard() {
           </div>
         </div>
 
-        {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
           <TabsList>
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="roadmap">Roadmap</TabsTrigger>
-            <TabsTrigger value="resources">Resources</TabsTrigger>
             <TabsTrigger value="meetings">Meetings</TabsTrigger>
           </TabsList>
 
-          {/* ========== OVERVIEW TAB ========== */}
           <TabsContent value="overview" className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="col-span-3">
                 <HorizontalScrollCards
-                  title="Your Mentors"
-                  people={mentors}
+                  title="Your Mentor"
+                  people={
+                    mentorData
+                      ? [
+                          {
+                            id: mentorData._id,
+                            name: mentorData.name,
+                            role: mentorData.profile?.experience || "Mentor",
+                            avatar: mentorData.profile?.profile_picture || "/placeholder.svg",
+                            matchScore: 100,
+                          },
+                        ]
+                      : []
+                  }
                   onCardClick={(id) => console.log(`Clicked mentor ${id}`)}
                   emptyMessage="You don't have any mentors yet"
                   type="mentors"
@@ -274,62 +299,6 @@ export default function MenteeDashboard() {
                   <Button className="w-full bg-purple-600 hover:bg-purple-700">View Detailed Roadmap</Button>
                 </Link>
               </CardFooter>
-            </Card>
-          </TabsContent>
-
-          {/* ========== RESOURCES TAB ========== */}
-          <TabsContent value="resources" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Learning Resources</CardTitle>
-                <CardDescription>Curated materials for your current module</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {/* You can turn this into a map if the list grows */}
-                <div className="space-y-4">
-                  <div className="p-4 border rounded-lg">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="font-medium">React Official Documentation</p>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">
-                          The official React documentation with guides and API references
-                        </p>
-                      </div>
-                      <Button variant="outline" size="sm">
-                        <a href="https://reactjs.org" target="_blank" rel="noopener noreferrer">View</a>
-                      </Button>
-                    </div>
-                  </div>
-
-                  <div className="p-4 border rounded-lg">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="font-medium">React Crash Course</p>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">
-                          YouTube video tutorial covering React fundamentals
-                        </p>
-                      </div>
-                      <Button variant="outline" size="sm">
-                        <a href="https://youtube.com" target="_blank" rel="noopener noreferrer">Watch</a>
-                      </Button>
-                    </div>
-                  </div>
-
-                  <div className="p-4 border rounded-lg">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="font-medium">React Hooks Explained</p>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">
-                          In-depth article about React hooks and their use cases
-                        </p>
-                      </div>
-                      <Button variant="outline" size="sm">
-                        <a href="#" target="_blank" rel="noopener noreferrer">Read</a>
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
             </Card>
           </TabsContent>
 
