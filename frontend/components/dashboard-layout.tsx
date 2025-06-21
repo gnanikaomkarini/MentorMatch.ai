@@ -27,16 +27,13 @@ export default function DashboardLayout({ children, userRole }: DashboardLayoutP
     { name: "Roadmap", href: "/roadmap", icon: <BarChart className="h-5 w-5" /> },
     { name: "Chat", href: "/chat", icon: <MessageSquare className="h-5 w-5" /> },
     { name: "Schedule", href: "/schedule", icon: <Calendar className="h-5 w-5" /> },
-    { name: "Interview", href: "/interview", icon: <Video className="h-5 w-5" /> },
     { name: "Profile", href: "/profile/mentee", icon: <User className="h-5 w-5" /> },
   ]
 
   const mentorNavItems = [
     { name: "Dashboard", href: "/dashboard/mentor", icon: <Home className="h-5 w-5" /> },
-    { name: "Mentees", href: "/mentees", icon: <Users className="h-5 w-5" /> },
     { name: "Chat", href: "/chat", icon: <MessageSquare className="h-5 w-5" /> },
     { name: "Schedule", href: "/schedule", icon: <Calendar className="h-5 w-5" /> },
-    { name: "Resources", href: "/resources", icon: <BarChart className="h-5 w-5" /> },
     { name: "Profile", href: "/profile/mentor", icon: <User className="h-5 w-5" /> },
   ]
 
