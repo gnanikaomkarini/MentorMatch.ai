@@ -42,12 +42,19 @@ export default function DashboardLayout({ children, userRole, userName, userEmai
   const navItems = userRole === "mentee" ? menteeNavItems : mentorNavItems
 
   // Handle logout functionality
-  const handleLogout = () => {
-    // Clear localStorage (adjust keys based on your app's usage)
-    localStorage.removeItem("menteeProfile")
-    localStorage.removeItem("mentorProfile")
-    // Redirect to login or home page
-    router.push("/login") // Adjust to "/" if no login page exists
+  const handleLogout = async () => {
+    try {
+      await fetch("http://localhost:5000/api/auth/logout", {
+        method: "POST",
+        credentials: "include",
+      })
+    } catch (e) {
+      // Optionally handle error
+    } finally {
+      localStorage.removeItem("menteeProfile")
+      localStorage.removeItem("mentorProfile")
+      router.push("/login") // Or "/" if you want
+    }
   }
 
   return (
@@ -101,7 +108,7 @@ export default function DashboardLayout({ children, userRole, userName, userEmai
             <div className="flex items-center">
               <Avatar className="h-8 w-8 mr-3">
                 <AvatarImage src="/placeholder.svg" alt={userName} />
-                <AvatarFallback>{userName.charAt(0)}</AvatarFallback>
+                <AvatarFallback>{(userName || "U").charAt(0)}</AvatarFallback>
               </Avatar>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{userName}</p>
@@ -144,7 +151,7 @@ export default function DashboardLayout({ children, userRole, userName, userEmai
             <div className="flex items-center">
               <Avatar className="h-8 w-8 mr-3">
                 <AvatarImage src="/placeholder.svg" alt={userName} />
-                <AvatarFallback>{userName.charAt(0)}</AvatarFallback>
+                <AvatarFallback>{(userName || "U").charAt(0)}</AvatarFallback>
               </Avatar>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{userName}</p>
