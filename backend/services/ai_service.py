@@ -5,7 +5,7 @@ from models.user import UserModel
 import json
 import re
 from utils.gemini import GeminiLLM
-from utils.roadmap_utils import create_roadmap
+from utils.roadmap_utils import create_roadmap, edit_roadmap
 from utils.audio_utils import transcribe, tts
 from utils.interview_utils import generate_next_question
 
@@ -70,6 +70,9 @@ def match_mentor_mentee(mentee_skills: List[str], mentee_experience: str) -> Opt
     
 def generate_roadmap(skill):
     return create_roadmap(skill)
+
+def update_roadmap(roadmap, conversation):
+    return edit_roadmap(roadmap, conversation)
 
 def generate_interview_questions(audio_path, history_json, goal, theme):
     user_answer = transcribe(audio_path)

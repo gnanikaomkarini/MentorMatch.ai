@@ -5,7 +5,7 @@ import json
 import tempfile
 from database.db import ai_learning_data
 from middleware.auth_middleware import token_required
-from services.ai_service import match_mentor_mentee, generate_roadmap, generate_interview_questions
+from services.ai_service import match_mentor_mentee, generate_roadmap, generate_interview_questions, update_roadmap
 from models.user import UserModel
 from models.roadmap import RoadmapModel
 
@@ -42,49 +42,101 @@ def match_mentors(current_user):
     except Exception as e:
         return jsonify({'message': f'Error matching mentors: {str(e)}'}), 500
 
+# @ai_bp.route('/roadmap', methods=['POST'])
+# @token_required
+# def create_roadmap(current_user):
+#     data = request.get_json()
+#     goal = data.get('goal')
+#     mentee_id = data.get('mentee_id')
+#     if not goal:
+#         return jsonify({'message': 'Goal is required'}), 400
+#     if not mentee_id:
+#         return jsonify({'message': 'Mentee ID is required'}), 400
+#     try:
+#         modules_content = generate_roadmap(goal) 
+#         db_roadmap = RoadmapModel.create_roadmap(
+#             mentee_id=mentee_id, 
+#             mentor_id=str(current_user.get('_id')), 
+#             topic=goal,
+#             duration_weeks=8, 
+#             modules=modules_content
+#         )
+#         if not db_roadmap:
+#             return jsonify({'message': 'Failed to create roadmap in database'}), 500
+#         serialized_roadmap = {
+#             "id": str(db_roadmap["_id"]), 
+#             "menteeId": str(db_roadmap["menteeId"]),
+#             "goal": db_roadmap["goal"],
+#             "status": db_roadmap["status"],
+#             "durationWeeks": db_roadmap["durationWeeks"],
+#             "approvalStatus": {
+#                 "mentorId": str(db_roadmap["approvalStatus"]["mentorId"]),
+#                 "status": db_roadmap["approvalStatus"]["status"],
+#                 "comments": db_roadmap["approvalStatus"]["comments"]
+#             },
+#             "interviewTrigger": db_roadmap["interviewTrigger"],
+#             "modules": db_roadmap["modules"], 
+#             "created_at": db_roadmap["created_at"].isoformat(),
+#             "updated_at": db_roadmap["updated_at"].isoformat()
+#         }
+#         return jsonify({
+#             'message': 'Roadmap generated successfully',
+#             'roadmap': serialized_roadmap 
+#         }), 200
+#     except Exception as e:
+#         return jsonify({'message': f'Error generating roadmap: {str(e)}'}), 500
+
+
 @ai_bp.route('/roadmap', methods=['POST'])
 @token_required
 def create_roadmap(current_user):
     data = request.get_json()
-    goal = data.get('goal')
+    conversation = data.get('conversation')
     mentee_id = data.get('mentee_id')
-    if not goal:
-        return jsonify({'message': 'Goal is required'}), 400
+    if not conversation:
+        return jsonify({'message': 'conversation is required'}), 400
     if not mentee_id:
         return jsonify({'message': 'Mentee ID is required'}), 400
-    try:
-        modules_content = generate_roadmap(goal) 
+    
+    roadmap_id = UserModel.get_user_roadmap_id(mentee_id)
+
+    if roadmap_id is None:
+        modules_content = generate_roadmap(conversation) 
         db_roadmap = RoadmapModel.create_roadmap(
             mentee_id=mentee_id, 
             mentor_id=str(current_user.get('_id')), 
-            topic=goal,
             duration_weeks=8, 
             modules=modules_content
         )
+        UserModel.add_roadmap_id_to_user(mentee_id, db_roadmap['_id'])
         if not db_roadmap:
             return jsonify({'message': 'Failed to create roadmap in database'}), 500
-        serialized_roadmap = {
-            "id": str(db_roadmap["_id"]), 
-            "menteeId": str(db_roadmap["menteeId"]),
-            "goal": db_roadmap["goal"],
-            "status": db_roadmap["status"],
-            "durationWeeks": db_roadmap["durationWeeks"],
-            "approvalStatus": {
-                "mentorId": str(db_roadmap["approvalStatus"]["mentorId"]),
-                "status": db_roadmap["approvalStatus"]["status"],
-                "comments": db_roadmap["approvalStatus"]["comments"]
-            },
-            "interviewTrigger": db_roadmap["interviewTrigger"],
-            "modules": db_roadmap["modules"], 
-            "created_at": db_roadmap["created_at"].isoformat(),
-            "updated_at": db_roadmap["updated_at"].isoformat()
-        }
-        return jsonify({
-            'message': 'Roadmap generated successfully',
-            'roadmap': serialized_roadmap 
-        }), 200
-    except Exception as e:
-        return jsonify({'message': f'Error generating roadmap: {str(e)}'}), 500
+    else:
+        roadmap = RoadmapModel.get_roadmap_as_dict_for_update(roadmap_id)
+        db_roadmap = update_roadmap(roadmap, conversation)
+        RoadmapModel.replace_roadmap_by_id(roadmap_id, db_roadmap)
+
+    serialized_roadmap = {
+        "id": str(db_roadmap["_id"]), 
+        "menteeId": str(db_roadmap["menteeId"]),
+        "status": db_roadmap["status"],
+        "durationWeeks": db_roadmap["durationWeeks"],
+        "approvalStatus": {
+            "mentorId": str(db_roadmap["approvalStatus"]["mentorId"]),
+            "status": db_roadmap["approvalStatus"]["status"],
+            "comments": db_roadmap["approvalStatus"]["comments"]
+        },
+        "interviewTrigger": db_roadmap["interviewTrigger"],
+        "modules": db_roadmap["modules"], 
+        "created_at": db_roadmap["created_at"].isoformat(),
+        "updated_at": db_roadmap["updated_at"].isoformat()
+    }
+    return jsonify({
+        'message': 'Roadmap generated successfully',
+        'roadmap': serialized_roadmap 
+    }), 200
+
+
 
 @ai_bp.route('/interview', methods=['POST'])
 @token_required

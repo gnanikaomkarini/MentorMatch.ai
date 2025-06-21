@@ -12,7 +12,12 @@ SERPER_API_KEY = os.getenv("SERPER_API_KEY")
 
 def get_modules_with_subtopics(topic: str, llm) -> list:
     prompt = f"""
-Break down the topic '{topic}' into 6–8 modules. Each module should contain:
+From the below conversation between a mentee and a mentor, identify the main topics that
+the mentee wishes to learn.
+
+Conversation: {topic}
+
+Break down the topics the mentee wants to learn into 6–8 modules. Each module should contain:
 - "title": Title of the module
 - "objective": A short objective
 - "subtopics": A list of 3–5 fine-grained subtopics (e.g., concepts or tasks)
@@ -64,30 +69,6 @@ def search_resources(query: str) -> list:
             "completed": False
         })
     return resources[:2]
-
-# def create_roadmap(topic) -> dict:
-#     llm = GeminiLLM(api_key=os.getenv("GEMINI_API_KEY"))
-#     modules = get_modules_with_subtopics(topic, llm)
-#     enriched_modules = []
-#     for mod in modules:
-#         enriched_subtopics = []
-#         for sub in mod["subtopics"]:
-#             resources = search_resources(f"{sub} {topic} site:youtube.com OR site:coursera.org OR free learning")
-#             enriched_subtopics.append({
-#                 "title": sub,
-#                 "resources": resources
-#             })
-
-#         enriched_modules.append({
-#             "title": mod["title"],
-#             "objective": mod["objective"],
-#             "subtopics": enriched_subtopics,
-#             "evaluation": {
-#                 "type": "questionnaire",
-#                 "status": "pending"
-#             }
-#         })
-#     return enriched_modules
 
 
 def create_roadmap(topic) -> dict:
@@ -145,3 +126,33 @@ Format your response as valid JSON:
         })
 
     return enriched_modules
+
+def edit_roadmap(roadmap, instructions):
+    llm = GeminiLLM(api_key=os.getenv("GEMINI_API_KEY"))
+
+    prompt=f'''
+    You are an educational AI assistant. Follow the instructions given and modify the roadmap given below accordingly.
+    Respond ONLY with a valid JSON list of the roadmap in the exact same format as it was given.
+
+    Instructions: {instructions}
+    Roadmap: {roadmap} 
+    '''
+
+    response = llm.invoke([{"role": "user", "content": prompt}])
+    content = response.content.strip()
+
+    match = re.search(r"```(?:json)?\s*(\[.*?\])\s*```", content, re.DOTALL)
+    json_str = match.group(1).strip() if match else content.strip()
+
+    try:
+        return json.loads(json_str)
+    except json.JSONDecodeError:
+        try:
+            cleaned = re.sub(r"```(?:json)?|```", "", json_str).strip()
+            print("Cleaned content before ast.literal_eval:\n", cleaned)
+            return ast.literal_eval(cleaned)
+        except Exception as e:
+            print("\nFailed to parse LLM output:", json_str)
+            raise e
+
+
