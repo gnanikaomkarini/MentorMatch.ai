@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
@@ -12,9 +13,8 @@ import DashboardLayout from "@/components/dashboard-layout"
 
 export default function RoadmapPage() {
   const [expandedModules, setExpandedModules] = useState<number[]>([0])
-
-  // Mock data
-  const roadmap = {
+  const router = useRouter()
+  const [roadmap, setRoadmap] = useState({
     title: "Full Stack Web Development",
     description: "A comprehensive roadmap to become a full stack web developer",
     progress: 35,
@@ -49,7 +49,6 @@ export default function RoadmapPage() {
         description: "Learn the basics of React and component-based architecture",
         progress: 40,
         completed: false,
-        current: true,
         resources: [
           { id: 7, title: "Introduction to React", type: "video", completed: true },
           { id: 8, title: "React Components", type: "video", completed: true },
@@ -111,7 +110,7 @@ export default function RoadmapPage() {
         ],
       },
     ],
-  }
+  })
 
   const toggleModule = (index: number) => {
     setExpandedModules((prev) => {
@@ -124,8 +123,48 @@ export default function RoadmapPage() {
   }
 
   const toggleResourceCompletion = (moduleIndex: number, resourceId: number) => {
-    // In a real app, this would update the state and make an API call
-    console.log(`Toggle resource ${resourceId} in module ${moduleIndex}`)
+    setRoadmap((prev) => {
+      const newModules = prev.modules.map((module, idx) =>
+        idx === moduleIndex
+          ? {
+              ...module,
+              resources: module.resources.map((resource) =>
+                resource.id === resourceId ? { ...resource, completed: !resource.completed } : resource
+              ),
+              progress: Math.round(
+                (module.resources.filter((r) => r.completed).length /
+                  module.resources.length +
+                  (module.resources.find((r) => r.id === resourceId)?.completed ? -1 : 1) /
+                  module.resources.length) *
+                  100
+              ),
+              completed: module.resources.every((r) =>
+                r.id === resourceId ? !r.completed : r.completed
+              ),
+            }
+          : module
+      )
+      return { ...prev, modules: newModules }
+    })
+  }
+
+  const areAllResourcesCompletedUpToModule = (moduleId: number) => {
+    return roadmap.modules
+      .filter((module) => module.id <= moduleId)
+      .every((module) => module.resources.every((resource) => resource.completed))
+  }
+
+  const isModuleUnlocked = (moduleIndex: number) => {
+    if (moduleIndex === 0) return true
+    return roadmap.modules[moduleIndex - 1].resources.every((resource) => resource.completed)
+  }
+
+  const handleTakeInterview = (moduleId: number) => {
+    router.push(`/roadmap/interview?moduleId=${moduleId}`)
+  }
+
+  const handleTakeAssessment = (moduleId: number) => {
+    router.push(`/roadmap/assessment?moduleId=${moduleId}`)
   }
 
   return (
@@ -162,7 +201,8 @@ export default function RoadmapPage() {
 
           <TabsContent value="modules" className="space-y-4">
             {roadmap.modules.map((module, index) => (
-              <Card key={module.id} className={module.current ? "border-purple-500 dark:border-purple-400" : ""}>
+            <div key={module.id}>
+              <Card>
                 <CardHeader className="pb-2">
                   <div className="flex items-center justify-between cursor-pointer" onClick={() => toggleModule(index)}>
                     <div className="flex items-center space-x-2">
@@ -170,9 +210,7 @@ export default function RoadmapPage() {
                         className={`flex items-center justify-center w-8 h-8 rounded-full ${
                           module.completed
                             ? "bg-green-100 text-green-600 dark:bg-green-900 dark:text-green-300"
-                            : module.current
-                              ? "bg-purple-100 text-purple-600 dark:bg-purple-900 dark:text-purple-300"
-                              : "bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400"
+                            : "bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400"
                         }`}
                       >
                         {module.completed ? <CheckCircle className="h-5 w-5" /> : <span>{index + 1}</span>}
@@ -183,7 +221,6 @@ export default function RoadmapPage() {
                       </div>
                     </div>
                     <div className="flex items-center space-x-2">
-                      {module.current && <Badge className="bg-purple-600">Current</Badge>}
                       <Badge variant="outline">{module.progress}% Complete</Badge>
                       {expandedModules.includes(index) ? (
                         <ChevronDown className="h-5 w-5" />
@@ -204,7 +241,7 @@ export default function RoadmapPage() {
                               id={`resource-${resource.id}`}
                               checked={resource.completed}
                               onCheckedChange={() => toggleResourceCompletion(index, resource.id)}
-                              disabled={module.completed || (!module.current && !resource.completed)}
+                              disabled={!isModuleUnlocked(index)}
                             />
                             <div className="flex-1">
                               <label
@@ -227,27 +264,44 @@ export default function RoadmapPage() {
 
                     <CardFooter>
                       {module.completed ? (
-                        <div className="flex items-center text-green-600 dark:text-green-400">
-                          <CheckCircle className="h-5 w-5 mr-2" />
-                          <span>Module completed</span>
-                        </div>
-                      ) : module.current ? (
                         <div className="flex justify-between w-full">
-                          <Button variant="outline">Request Help</Button>
-                          {module.progress > 0 && (
-                            <Button className="bg-purple-600 hover:bg-purple-700">Take Assessment</Button>
-                          )}
+                          <div className="flex items-center text-green-600 dark:text-green-400">
+                            <span>Module completed</span>
+                          </div>
+                          <Button
+                            className="bg-purple-600 hover:bg-purple-700"
+                            onClick={() => handleTakeAssessment(module.id)}
+                            disabled={!module.completed}
+                          >
+                            Take Assessment
+                          </Button>
                         </div>
                       ) : (
-                        <p className="text-sm text-gray-500 dark:text-gray-400">
-                          Complete previous modules to unlock this content
-                        </p>
+                        <div className="flex justify-between w-full">
+                          <Button variant="outline">Request Help</Button>
+                          <p className="text-sm text-gray-500 dark:text-gray-400">
+                            Complete all resources to unlock assessment
+                          </p>
+                        </div>
                       )}
                     </CardFooter>
                   </>
                 )}
               </Card>
-            ))}
+
+              {(module.id === 3 || module.id === 7) && (
+                <div className="mt-4 flex justify-end">
+                  <Button
+                    className="bg-purple-600 hover:bg-purple-700"
+                    onClick={() => handleTakeInterview(module.id)}
+                    disabled={!areAllResourcesCompletedUpToModule(module.id)}
+                  >
+                    Take Interview
+                  </Button>
+                </div>
+              )}
+            </div>
+          ))}
           </TabsContent>
 
           <TabsContent value="timeline" className="space-y-4">
@@ -283,7 +337,7 @@ export default function RoadmapPage() {
                       </div>
 
                       <div className="relative pl-10">
-                        <div className="absolute left-0 top-1 w-8 h-8 rounded-full bg-purple-100 dark:bg-purple-900 flex items-center justify-center text-purple-600 dark:text-purple-400">
+                        <div className="absolute left-0 top-1 w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-gray-500 dark:text-gray-400">
                           3
                         </div>
                         <div>
