@@ -1,7 +1,8 @@
 from flask import Blueprint, request, jsonify, g
 import datetime
 from bson.objectid import ObjectId
-
+import json
+import tempfile
 from database.db import ai_learning_data
 from middleware.auth_middleware import token_required
 from services.ai_service import match_mentor_mentee, generate_roadmap, generate_interview_questions
@@ -102,39 +103,42 @@ def create_roadmap():
 
 @ai_bp.route('/interview', methods=['POST'])
 @token_required
-def create_interview(current_user):
-    data = request.get_json()
-    
-    skill = data.get('skill')
-    level = data.get('level', 'beginner')
-    module = data.get('module')
-    
-    if not skill:
-        return jsonify({'message': 'Skill is required'}), 400
-    
+def interview():
     try:
-        # Generate interview questions using AI
-        questions = generate_interview_questions(skill, level, None, module)
-        
-        # Log the interview data for AI learning
-        learning_data = {
-            'type': 'interview_generation',
-            'user_id': str(current_user['_id']),
-            'skill': skill,
-            'level': level,
-            'module': module,
-            'questions': questions,
-            'timestamp': datetime.datetime.utcnow()
+        audio_file = request.files.get('audio')
+        roadmap_id = request.form.get('roadmap_id')
+        interview_num = int(request.form.get('interview_num'))
+        history_json = request.form.get('history')
+
+        if interview_num == 1:
+            interview = RoadmapModel.get_interview_1(roadmap_id)
+            goal = interview['goal']
+            theme = interview['interview_theme_1']
+        else:
+            interview = RoadmapModel.get_interview_2(roadmap_id)
+            goal = interview['goal']
+            theme = interview['interview_theme_2']        
+
+        if not audio_file or not roadmap_id or not history_json or not goal or not theme:
+            return jsonify({'message': 'audio, roadmap_id, history, goal and theme are required'}), 400
+
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as tmp_audio:
+            audio_path = tmp_audio.name
+            audio_file.save(audio_path)
+
+        user_answer, next_question = generate_interview_questions(audio_path, history_json, goal, theme)
+
+        response_payload = {
+            "transcript": user_answer,
+            "next_question": next_question,
+            "audio_path": 'ai-speech.mp3'
         }
-        
-        ai_learning_data.insert_one(learning_data)
-        
-        return jsonify({
-            'message': 'Interview questions generated successfully',
-            'questions': questions
-        }), 200
+
+        return jsonify(response_payload), 200
+
     except Exception as e:
-        return jsonify({'message': f'Error generating interview questions: {str(e)}'}), 500
+        return jsonify({'message': f'Error during interview: {str(e)}'}), 500
+
 
 @ai_bp.route('/feedback', methods=['POST'])
 @token_required

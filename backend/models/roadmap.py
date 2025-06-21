@@ -38,3 +38,44 @@ class RoadmapModel:
             {"_id": ObjectId(roadmap_id)},
             {"$set": {"status": new_status, "updated_at": datetime.utcnow()}}
         )
+    
+    @staticmethod
+    def set_interview_theme_1(roadmap_id, theme_value):
+        return roadmaps.update_one(
+            {"_id": ObjectId(roadmap_id)},
+            {
+                "$set": {
+                    "interview_theme_1": theme_value,
+                    "updated_at": datetime.utcnow()
+                }
+            }
+        )
+    
+    @staticmethod
+    def set_interview_theme_2(roadmap_id, theme_value):
+        return roadmaps.update_one(
+            {"_id": ObjectId(roadmap_id)},
+            {
+                "$set": {
+                    "interview_theme_2": theme_value,
+                    "updated_at": datetime.utcnow()
+                }
+            }
+        )
+    
+    @staticmethod
+    def get_interview_1(roadmap_id):
+        result = roadmaps.find_one(
+            {"_id": ObjectId(roadmap_id)},
+            {"_id": 0, "interview_theme_1": 1, "goal": 1}
+        )
+        return result
+
+
+    @staticmethod
+    def get_interview_2(roadmap_id):
+        result = roadmaps.find_one(
+            {"_id": ObjectId(roadmap_id)},
+            {"_id": 0, "interview_theme_2": 1, "goal": 1}
+        )
+        return result
