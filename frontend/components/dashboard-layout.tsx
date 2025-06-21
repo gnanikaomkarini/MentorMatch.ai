@@ -15,9 +15,11 @@ import NotificationDropdown from "@/components/notification-dropdown"
 interface DashboardLayoutProps {
   children: React.ReactNode
   userRole: "mentee" | "mentor"
+  userName: string
+  userEmail: string
 }
 
-export default function DashboardLayout({ children, userRole }: DashboardLayoutProps) {
+export default function DashboardLayout({ children, userRole, userName, userEmail }: DashboardLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const pathname = usePathname()
   const router = useRouter()
@@ -38,8 +40,6 @@ export default function DashboardLayout({ children, userRole }: DashboardLayoutP
   ]
 
   const navItems = userRole === "mentee" ? menteeNavItems : mentorNavItems
-  const userName = userRole === "mentee" ? "Sarah Kim" : "Dr. Alex Johnson"
-  const userEmail = userRole === "mentee" ? "sarah@example.com" : "alex@example.com"
 
   // Handle logout functionality
   const handleLogout = () => {

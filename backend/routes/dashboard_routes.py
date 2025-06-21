@@ -98,7 +98,11 @@ def mentee_dashboard(current_user):
         'roadmap_id': roadmap_id,
         'roadmap_title': roadmap_title,
         'upcoming_meeting': upcoming_meeting,
-        'last_message': last_msg
+        'last_message': last_msg,
+        'user': {
+            'name': mentee.get('name'),
+            'email': mentee.get('email')
+        }
     }), 200
 
 @dashboard_bp.route('/mentor', methods=['GET'])
@@ -167,5 +171,11 @@ def mentor_dashboard(current_user):
             'upcoming_meeting': upcoming_meeting
         })
 
-    return jsonify({'mentees': mentees_data}), 200
+    return jsonify({
+        'mentees': mentees_data,
+        'user': {
+            'name': mentor.get('name'),
+            'email': mentor.get('email')
+        }
+    }), 200
 
