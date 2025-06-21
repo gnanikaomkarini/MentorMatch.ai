@@ -2,16 +2,16 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import Footer from "@/components/footer"
+import Navbar from "@/components/navbar"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { CheckCircle, Mail, MapPin, Phone } from "lucide-react"
-import Navbar from "@/components/navbar"
-import Footer from "@/components/footer"
+import { CheckCircle } from "lucide-react"
+import { useState } from "react"
 
 export default function ContactPage() {
   const [formData, setFormData] = useState({
@@ -63,27 +63,6 @@ export default function ContactPage() {
               <p className="text-xl text-gray-600 dark:text-gray-300">
                 Have questions or feedback? We'd love to hear from you.
               </p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
-              <ContactCard
-                icon={<Mail className="h-8 w-8 text-purple-600 dark:text-purple-400" />}
-                title="Email"
-                content="support@mentormatch.ai"
-                link="mailto:support@mentormatch.ai"
-              />
-              <ContactCard
-                icon={<Phone className="h-8 w-8 text-purple-600 dark:text-purple-400" />}
-                title="Phone"
-                content="+1 (555) 123-4567"
-                link="tel:+15551234567"
-              />
-              <ContactCard
-                icon={<MapPin className="h-8 w-8 text-purple-600 dark:text-purple-400" />}
-                title="Address"
-                content="123 Innovation Way, Tech City, CA 94043"
-                link="https://maps.google.com"
-              />
             </div>
 
             <Card>
@@ -144,27 +123,6 @@ export default function ContactPage() {
               </CardContent>
             </Card>
 
-            <div className="mt-12">
-              <h2 className="text-2xl font-bold mb-6 text-center">Frequently Asked Questions</h2>
-              <div className="space-y-6">
-                <FAQ
-                  question="How do I get started with MentorMatch.ai?"
-                  answer="Sign up as a mentee, complete your profile, and our AI will match you with suitable mentors. You'll then receive a personalized roadmap based on your goals and timeframe."
-                />
-                <FAQ
-                  question="How are mentors vetted?"
-                  answer="All mentors go through a thorough application process, including verification of their expertise, experience, and teaching ability. We also collect and monitor feedback from mentees."
-                />
-                <FAQ
-                  question="Is there a cost to use MentorMatch.ai?"
-                  answer="We offer both free and premium tiers. The free tier includes basic matching and limited roadmap features, while premium unlocks full access to all features, including unlimited mentor sessions."
-                />
-                <FAQ
-                  question="Can I change my mentor if we're not a good match?"
-                  answer="Yes, you can request a new mentor match if you feel your current match isn't working out. Our goal is to ensure productive mentorship relationships."
-                />
-              </div>
-            </div>
           </div>
         </div>
       </div>

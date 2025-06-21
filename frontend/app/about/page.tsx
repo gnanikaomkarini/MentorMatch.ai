@@ -1,9 +1,9 @@
-import Link from "next/link"
-import { Button } from "@/components/ui/button"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { User } from "lucide-react"
-import Navbar from "@/components/navbar"
 import Footer from "@/components/footer"
+import Navbar from "@/components/navbar"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Button } from "@/components/ui/button"
+import { User } from "lucide-react"
+import Link from "next/link"
 
 export default function AboutPage() {
   return (
@@ -60,13 +60,12 @@ export default function AboutPage() {
               {/* Milestone 1: The Beginning */}
               <div className="relative flex flex-col md:flex-row items-center gap-6">
                 <div className="md:w-1/2 text-right pr-8">
-                  <h3 className="text-xl font-semibold">The Beginning</h3>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">2024</p>
+                  <h3 className="text-xl font-semibold">The Idea</h3>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">May 2025</p>
                   <p className="text-gray-600 dark:text-gray-300 mt-2">
-                    MentorMatch.ai was founded in 2024 by a team of educators, technologists, and industry experts who
-                    recognized a gap in traditional learning models. They saw that while online courses provided
-                    content, learners often lacked the guidance and accountability that comes from personalized
-                    mentorship.
+                    MentorMatch.ai was born out of a shared frustration with traditional learning platforms. 
+                    While courses offered content, learners struggled with motivation, direction, and personalized support. 
+                    We envisioned a solution that combined the structure of AI with the empathy of real mentors.
                   </p>
                 </div>
                 <div className="absolute left-1/2 transform -translate-x-1/2 w-4 h-4 bg-purple-600 dark:bg-purple-400 rounded-full"></div>
@@ -79,11 +78,11 @@ export default function AboutPage() {
                 <div className="absolute left-1/2 transform -translate-x-1/2 w-4 h-4 bg-purple-600 dark:bg-purple-400 rounded-full"></div>
                 <div className="md:w-1/2 text-left pl-8">
                   <h3 className="text-xl font-semibold">The Innovation</h3>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">2024</p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">June 2025</p>
                   <p className="text-gray-600 dark:text-gray-300 mt-2">
-                    By integrating AI with human mentorship, we created a platform that could analyze learning patterns,
-                    generate personalized roadmaps, and provide continuous feedback while maintaining the irreplaceable
-                    human connection of mentor-mentee relationships.
+                    We built an intelligent platform that matches mentees with mentors based on goals,
+                    skills, learning style, and availability. Our AI generates dynamic roadmaps and
+                    adapts based on progress—while mentors provide real guidance, feedback, and accountability.
                   </p>
                 </div>
               </div>
@@ -91,13 +90,12 @@ export default function AboutPage() {
               {/* Milestone 3: Today */}
               <div className="relative flex flex-col md:flex-row items-center gap-6">
                 <div className="md:w-1/2 text-right pr-8">
-                  <h3 className="text-xl font-semibold">Today</h3>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">2025</p>
+                  <h3 className="text-xl font-semibold">The Impact</h3>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">July 2025 & Beyond</p>
                   <p className="text-gray-600 dark:text-gray-300 mt-2">
-                    Today, MentorMatch.ai serves thousands of learners across the globe, connecting them with expert
-                    mentors in fields ranging from software development to data science, design, and business. Our
-                    AI-powered platform continues to evolve, learning from each mentorship relationship to improve the
-                    experience for everyone.
+                    In just weeks, MentorMatch.ai grew into a thriving mentorship ecosystem. 
+                    Today, learners from all over the world use our platform to connect with industry experts,
+                    build real skills, and reach their career goals—faster and smarter.
                   </p>
                 </div>
                 <div className="absolute left-1/2 transform -translate-x-1/2 w-4 h-4 bg-purple-600 dark:bg-purple-400 rounded-full"></div>
@@ -112,61 +110,37 @@ export default function AboutPage() {
       <section className="py-20 bg-gray-50 dark:bg-gray-950">
         <div className="container mx-auto px-4 md:px-6">
           <h2 className="text-3xl font-bold mb-12 text-center">Our Team</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-7">
             <TeamMember
-              name="Alex Chen"
-              role="Founder & CEO"
+              name="Gnanika Omkarini Makkena"
+              role="gnanikaomkarini@gmail.com"
               image="/placeholder.svg?height=300&width=300"
-              bio="Former tech lead with 15+ years of experience in education technology."
+              bio="BVRIT HYDERABAD College of Engineering from Women"
             />
             <TeamMember
-              name="Sarah Johnson"
-              role="Chief Learning Officer"
+              name="Radhika Sharda"
+              role="shardaradhika25@gmail.com"
               image="/placeholder.svg?height=300&width=300"
-              bio="PhD in Educational Psychology with expertise in personalized learning."
+              bio="NITK SURATHKAL"
             />
             <TeamMember
-              name="Michael Rodriguez"
-              role="CTO"
+              name="Dyuthi Vivek"
+              role="dyuthi.vivek@gmail.com"
               image="/placeholder.svg?height=300&width=300"
-              bio="AI researcher and engineer with a passion for human-centered technology."
+              bio="IIIT Bangalore"
             />
             <TeamMember
-              name="Priya Patel"
-              role="Head of Mentorship"
+              name="Dhaksha Muthukumaran"
+              role="dhaksha768@gmail.com"
               image="/placeholder.svg?height=300&width=300"
-              bio="Career coach and mentor with experience at top tech companies."
+              bio=" R. V. College of Engineering"
             />
-          </div>
-        </div>
-      </section>
-
-      {/* Impact Section (Unchanged) */}
-      <section className="py-20 bg-white dark:bg-gray-900">
-        <div className="container mx-auto px-4 md:px-6">
-          <h2 className="text-3xl font-bold mb-12 text-center">Our Impact</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
-            <div className="p-6 border rounded-lg">
-              <div className="text-4xl font-bold text-purple-600 dark:text-purple-400 mb-2">5,000+</div>
-              <p className="text-xl">Mentees</p>
-              <p className="text-gray-600 dark:text-gray-300 mt-2">
-                Learners who have accelerated their skill development through our platform
-              </p>
-            </div>
-            <div className="p-6 border rounded-lg">
-              <div className="text-4xl font-bold text-purple-600 dark:text-purple-400 mb-2">500+</div>
-              <p className="text-xl">Expert Mentors</p>
-              <p className="text-gray-600 dark:text-gray-300 mt-2">
-                Industry professionals sharing their knowledge and experience
-              </p>
-            </div>
-            <div className="p-6 border rounded-lg">
-              <div className="text-4xl font-bold text-purple-600 dark:text-purple-400 mb-2">85%</div>
-              <p className="text-xl">Success Rate</p>
-              <p className="text-gray-600 dark:text-gray-300 mt-2">
-                Mentees who achieve their learning goals within their target timeframe
-              </p>
-            </div>
+            <TeamMember
+              name="Harshita Agarwal"
+              role="harshitaa2809@gmail.com"
+              image="/placeholder.svg?height=300&width=300"
+              bio="Indira Gandhi Delhi Technical University for Women (IGDTUW)"
+            />
           </div>
         </div>
       </section>

@@ -1,9 +1,9 @@
-import type React from "react"
-import Link from "next/link"
-import { Button } from "@/components/ui/button"
-import { ArrowRight, CheckCircle, Users, BookOpen, Calendar, Award } from "lucide-react"
-import Navbar from "@/components/navbar"
 import Footer from "@/components/footer"
+import Navbar from "@/components/navbar"
+import { Button } from "@/components/ui/button"
+import { ArrowRight, Award, BookOpen, Calendar, CheckCircle, Users } from "lucide-react"
+import Link from "next/link"
+import type React from "react"
 
 export default function LandingPage() {
   return (
@@ -77,35 +77,23 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Testimonials Section */}
-      <section className="py-20 bg-gray-50 dark:bg-gray-950">
-        <div className="container mx-auto px-4 md:px-6">
-          <h2 className="text-3xl font-bold text-center mb-12">Success Stories</h2>
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-            <TestimonialCard
-              quote="MentorMatch.ai paired me with a mentor who perfectly understood my learning style. I've made more progress in 3 months than I did in a year on my own."
-              author="Sarah K."
-              role="Web Developer"
-            />
-            <TestimonialCard
-              quote="The AI-generated roadmap was spot on. It challenged me at the right pace and the resources were exactly what I needed to grow my skills."
-              author="Michael T."
-              role="Data Scientist"
-            />
-            <TestimonialCard
-              quote="As a mentor, I love how the platform helps me track my mentees' progress and focus on what they need most. The AI suggestions are surprisingly insightful."
-              author="Dr. Lisa M."
-              role="Senior AI Engineer"
-            />
-          </div>
-        </div>
-      </section>
-
       {/* FAQ Section */}
       <section className="py-20 bg-white dark:bg-gray-900">
         <div className="container mx-auto px-4 md:px-6">
           <h2 className="text-3xl font-bold text-center mb-12">Frequently Asked Questions</h2>
           <div className="max-w-3xl mx-auto space-y-6">
+            <FAQItem
+              question="How do I get started with MentorMatch.ai?"
+              answer="Sign up as a mentee, complete your profile, and our AI will match you with suitable mentors. You'll then receive a personalized roadmap based on your goals and timeframe."
+            />
+            <FAQItem
+              question="How are mentors vetted?"
+              answer="All mentors go through a thorough application process, including verification of their expertise, experience, and teaching ability. We also collect and monitor feedback from mentees."
+            />
+            <FAQItem
+              question="Is there a cost to use MentorMatch.ai?"
+              answer="We offer both free and premium tiers. The free tier includes basic matching and limited roadmap features, while premium unlocks full access to all features, including unlimited mentor sessions."
+            />
             <FAQItem
               question="How does the AI matching work?"
               answer="Our AI analyzes your skills, goals, learning style, and availability to find mentors who are most compatible with your needs. It considers factors like expertise areas, communication preferences, and personality traits."

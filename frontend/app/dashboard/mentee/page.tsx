@@ -3,7 +3,6 @@
 import DashboardLayout from "@/components/dashboard-layout"
 import HorizontalScrollCards from "@/components/horizontal-scroll-cards"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -80,6 +79,7 @@ export default function MenteeDashboard() {
                     {
                       id: dashboard.mentor.id,
                       name: dashboard.mentor.name,
+                      role: "Mentor",
                       avatar: "/placeholder.svg",
                       matchScore: 100,
                     },
