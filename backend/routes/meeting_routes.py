@@ -13,77 +13,54 @@ meeting_bp = Blueprint('meetings', __name__)
 @token_required
 def schedule_meeting(current_user):
     data = request.get_json()
-    
-    mentor_id = data.get('mentor_id')
+    mentor_id = str(current_user['_id'])
     mentee_id = data.get('mentee_id')
     title = data.get('title')
     description = data.get('description', '')
+    meeting_link = data.get('meeting_link')
     start_time = data.get('start_time')
     end_time = data.get('end_time')
-    
-    if not mentor_id or not mentee_id or not title or not start_time or not end_time:
+
+    if current_user['role'] != 'mentor':
+        return jsonify({'message': 'Only mentors can schedule meetings'}), 403
+
+    if not mentee_id or not title or not meeting_link or not start_time or not end_time:
         return jsonify({'message': 'Missing required fields'}), 400
-    
+
     try:
-        # Check if mentor and mentee exist
-        mentor = users.find_one({'_id': ObjectId(mentor_id), 'role': 'mentor'})
         mentee = users.find_one({'_id': ObjectId(mentee_id), 'role': 'mentee'})
-        
-        if not mentor or not mentee:
-            return jsonify({'message': 'Mentor or mentee not found'}), 404
-        
-        # Check if current user is either the mentor or mentee
-        user_id = str(current_user['_id'])
-        if user_id != mentor_id and user_id != mentee_id:
-            return jsonify({'message': 'Unauthorized'}), 403
-        
-        # Convert string times to datetime objects
-        start_datetime = datetime.datetime.fromisoformat(start_time)
-        end_datetime = datetime.datetime.fromisoformat(end_time)
-        
-        # Create Google Meet link
-        meeting_link = create_google_meet(title, description, start_datetime, end_datetime, [mentor['email'], mentee['email']])
-        
-        # Create meeting
-        new_meeting = {
+        if not mentee:
+            return jsonify({'message': 'Mentee not found'}), 404
+
+        start_dt = datetime.datetime.fromisoformat(start_time.replace('Z', '+00:00'))
+        end_dt = datetime.datetime.fromisoformat(end_time.replace('Z', '+00:00'))
+
+        meeting = {
             'mentor_id': mentor_id,
             'mentee_id': mentee_id,
             'title': title,
             'description': description,
-            'start_time': start_datetime,
-            'end_time': end_datetime,
             'meeting_link': meeting_link,
-            'meeting_id': str(uuid.uuid4()),
+            'start_time': start_dt,
+            'end_time': end_dt,
             'status': 'scheduled',
-            'created_at': datetime.datetime.utcnow(),
-            'created_by': user_id
+            'created_at': datetime.datetime.utcnow()
         }
-        
-        result = meetings.insert_one(new_meeting)
-        
-        # Create notification for the other user
-        other_user_id = mentee_id if user_id == mentor_id else mentor_id
-        
+        result = meetings.insert_one(meeting)
+
         notification = {
             'type': 'meeting_scheduled',
-            'from_user_id': user_id,
-            'to_user_id': other_user_id,
-            'from_username': current_user['username'],
+            'from_user_id': mentor_id,
+            'to_user_id': mentee_id,
             'meeting_id': str(result.inserted_id),
             'meeting_title': title,
             'meeting_time': start_time,
             'created_at': datetime.datetime.utcnow(),
             'read': False
         }
-        
         notifications.insert_one(notification)
-        
-        return jsonify({
-            'message': 'Meeting scheduled successfully',
-            'meeting_id': str(result.inserted_id)
-        }), 201
-    except ValueError:
-        return jsonify({'message': 'Invalid date format'}), 400
+
+        return jsonify({'message': 'Meeting scheduled successfully', 'meeting_id': str(result.inserted_id)}), 201
     except Exception as e:
         return jsonify({'message': f'Error scheduling meeting: {str(e)}'}), 500
 
@@ -234,3 +211,43 @@ def cancel_meeting(current_user, meeting_id):
         return jsonify({'message': 'Meeting cancelled successfully'}), 200
     except:
         return jsonify({'message': 'Invalid meeting ID'}), 400
+
+@meeting_bp.route('/upcoming', methods=['GET'])
+@token_required
+def get_upcoming_meetings(current_user):
+    user_id = str(current_user['_id'])
+    now = datetime.datetime.utcnow()
+
+    meetings_list = list(meetings.find({
+        '$or': [
+            {'mentor_id': user_id},
+            {'mentee_id': user_id}
+        ],
+        'start_time': {'$gte': now},
+        'status': 'scheduled'
+    }).sort('start_time', 1))
+
+    result = []
+    for meeting in meetings_list:
+        if meeting['mentor_id'] == user_id:
+            other_id = meeting['mentee_id']
+            other = users.find_one({'_id': ObjectId(other_id)})
+        else:
+            other_id = meeting['mentor_id']
+            other = users.find_one({'_id': ObjectId(other_id)})
+
+        result.append({
+            "meeting_id": str(meeting['_id']),
+            "title": meeting['title'],
+            "description": meeting.get('description', ''),
+            "meeting_link": meeting.get('meeting_link', ''),
+            "start_time": meeting['start_time'].isoformat(),
+            "end_time": meeting['end_time'].isoformat(),
+            "with": {
+                "id": other_id,
+                "name": other.get('name', '') if other else '',
+                "role": other.get('role', '') if other else ''
+            }
+        })
+
+    return jsonify(result), 200
