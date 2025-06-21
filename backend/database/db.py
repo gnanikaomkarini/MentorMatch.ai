@@ -23,6 +23,7 @@ languages = db.languages
 interview_questions = db.interview_questions
 notifications = db.notifications
 ai_learning_data = db.ai_learning_data
+messages = db.messages
 
 # Create indexes for better query performance
 users.create_index('email', unique=True)
@@ -30,3 +31,4 @@ users.create_index('username', unique=True)
 roadmaps.create_index([('mentor_id', 1), ('mentee_id', 1)])
 chats.create_index([('mentor_id', 1), ('mentee_id', 1)])
 meetings.create_index([('mentor_id', 1), ('mentee_id', 1)])
+messages.create_index([('sender_id', 1), ('receiver_id', 1), ('timestamp', -1)])

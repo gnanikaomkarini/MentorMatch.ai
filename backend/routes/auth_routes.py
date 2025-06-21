@@ -1,11 +1,4 @@
-from flask import Blueprint, request, jsonify
-from werkzeug.security import generate_password_hash, check_password_hash
-import jwt
-import datetime
-import os
-from bson.objectid import ObjectId
-
-from database.db import users
+from flask import Blueprint
 from controllers.auth_controller import AuthController
 from middleware.auth_middleware import token_required
 
@@ -15,10 +8,17 @@ auth_bp = Blueprint('auth', __name__)
 auth_bp.route('/register', methods=['POST'])(AuthController.register)
 auth_bp.route('/login', methods=['POST'])(AuthController.login)
 auth_bp.route('/logout', methods=['POST'])(AuthController.logout)
-auth_bp.route('/profile', methods=['GET'])(token_required(AuthController.get_profile))
-auth_bp.route('/profile/update', methods=['POST'])(token_required(AuthController.update_profile))
 
-# Health check route
+@auth_bp.route('/profile', methods=['GET'])
+@token_required
+def get_profile(current_user):
+    return AuthController.get_profile(current_user)
+
+@auth_bp.route('/profile/update', methods=['POST'])
+@token_required
+def update_profile(current_user):
+    return AuthController.update_profile(current_user)
+
 @auth_bp.route('/health', methods=['GET'])
 def health_check():
     return {'status': 'Authentication service is running'}, 200

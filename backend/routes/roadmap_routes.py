@@ -1,10 +1,11 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, g
 import datetime
 from bson.objectid import ObjectId
 
 from database.db import roadmaps, users, notifications
 from middleware.auth_middleware import token_required
 from services.ai_service import generate_roadmap
+from services.assessment_service import get_assessment, submit_score
 
 roadmap_bp = Blueprint('roadmaps', __name__)
 
@@ -257,3 +258,24 @@ def request_roadmap(current_user):
         return jsonify({'message': 'Roadmap request sent'}), 200
     except:
         return jsonify({'message': 'Invalid mentor ID'}), 400
+
+@roadmap_bp.route('/<roadmap_id>/<int:module_index>/assessment/get', methods=['GET'])
+@token_required
+def get_mcq_assessment(roadmap_id, module_index, current_user):
+    questions = get_assessment(roadmap_id, module_index)
+    if questions is None:
+        return jsonify({"message": "Not found"}), 404
+    return jsonify({"questions": questions})
+
+@roadmap_bp.route('/<roadmap_id>/<int:module_index>/assessment/submit', methods=['POST'])
+@token_required
+def submit_mcq_score(roadmap_id, module_index, current_user):
+    data = request.get_json()
+    score = data.get("score")
+    user_id = str(current_user['_id'])
+    if score is None:
+        return jsonify({"message": "Score required"}), 400
+    best_score = submit_score(roadmap_id, module_index, user_id, score)
+    if best_score is None:
+        return jsonify({"message": "Not found"}), 404
+    return jsonify({"message": "Score submitted", "best_score": best_score})

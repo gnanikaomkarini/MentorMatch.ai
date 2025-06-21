@@ -315,12 +315,6 @@ export default function MenteeProfilePage() {
         </div>
         <Card className="w-full">
           <CardHeader className="flex flex-col sm:flex-row items-center sm:items-start gap-4">
-            <Avatar className="h-24 w-24">
-              <AvatarImage src={displayedProfile?.profile_picture || undefined} />
-              <AvatarFallback className="bg-gray-200 dark:bg-gray-700">
-                <User className="h-12 w-12 text-gray-600 dark:text-gray-300" />
-              </AvatarFallback>
-            </Avatar>
             <div className="text-center sm:text-left">
               <CardTitle className="text-2xl font-bold">{userData?.name}</CardTitle>
               <CardDescription className="text-gray-500 dark:text-gray-400">{userData?.email}</CardDescription>
@@ -599,31 +593,6 @@ export default function MenteeProfilePage() {
               </div>
               {!isEditing.bio && (
                 <Button variant="ghost" size="sm" onClick={() => toggleEdit("bio")}>
-                  <Edit className="h-4 w-4" />
-                </Button>
-              )}
-            </div>
-            {/* Profile Picture */}
-            <div className="flex items-center gap-4">
-              <div className="flex-1">
-                <Label className="text-sm font-medium text-gray-700 dark:text-gray-300">Profile Picture URL</Label>
-                {isEditing.profile_picture ? (
-                  <div className="flex gap-2 mt-2">
-                    <Input
-                      value={editForm.profile_picture}
-                      onChange={(e) => updateEditForm("profile_picture", e.target.value)}
-                      placeholder="https://example.com/yourphoto.jpg"
-                    />
-                    <Button onClick={() => setIsEditing((prev) => ({ ...prev, profile_picture: false }))} size="sm">
-                      <Save className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ) : (
-                  <p className="text-lg text-gray-900 dark:text-gray-100">{displayedProfile?.profile_picture}</p>
-                )}
-              </div>
-              {!isEditing.profile_picture && (
-                <Button variant="ghost" size="sm" onClick={() => toggleEdit("profile_picture")}>
                   <Edit className="h-4 w-4" />
                 </Button>
               )}

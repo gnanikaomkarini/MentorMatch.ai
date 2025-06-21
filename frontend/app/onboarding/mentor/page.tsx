@@ -21,7 +21,7 @@ export default function MentorOnboarding() {
   const [step, setStep] = useState(1)
   const [userData, setUserData] = useState<UserData | null>(null)
   const [formData, setFormData] = useState({
-    yearsExperience: "",
+    experience: "",
     currentRole: "",
     company: "",
     bio: "",
@@ -30,6 +30,7 @@ export default function MentorOnboarding() {
     newSkill: "",
     languages: [] as string[],
     languageInput: "",
+    mentoringStyle: "", // <-- Add this field
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
@@ -61,16 +62,25 @@ export default function MentorOnboarding() {
       const availabilityArr = Object.entries(formData.availability).flatMap(([day, times]) =>
         times.map((time) => `${day} ${time.charAt(0).toUpperCase() + time.slice(1)}`)
       )
+      // Compose experience: add current role and company if present
+      let experienceText = formData.experience.trim()
+      if (formData.currentRole && formData.company) {
+        experienceText = `${experienceText}\n(Currently: ${formData.currentRole} at ${formData.company})`
+      } else if (formData.currentRole) {
+        experienceText = `${experienceText}\n(Currently: ${formData.currentRole})`
+      } else if (formData.company) {
+        experienceText = `${experienceText}\n(Currently at ${formData.company})`
+      }
       // Prepare payload
       const payload = {
         profile: {
           skills: formData.skills,
-          experience: formData.yearsExperience,
-          mentoring_style: formData.currentRole,
+          experience: experienceText,
+          mentoring_style: formData.mentoringStyle, // <-- Use selected style
           availability: availabilityArr,
           languages: [...formData.languages, ...finalLanguages],
           bio: formData.bio,
-          profile_picture: "", // Add if you have a field for this
+          // profile_picture: "", // Do not send profile_picture
         },
       }
       try {
@@ -89,7 +99,6 @@ export default function MentorOnboarding() {
           return
         }
         setSuccess("Profile completed successfully!")
-        // Optionally store in localStorage
         localStorage.setItem('mentorProfile', JSON.stringify(payload.profile))
         window.location.href = "/dashboard/mentor"
       } catch (err) {
@@ -170,31 +179,23 @@ export default function MentorOnboarding() {
           <CardContent>
             {step === 1 && (
               <div className="space-y-4">
-                <h3 className="text-lg font-medium">Tell us about your professional background</h3>
+                <h3 className="text-lg font-medium">Tell us about your professional experience</h3>
                 <div className="space-y-2">
-                  <Label htmlFor="yearsExperience">Years of Experience</Label>
-                  <Select
-                    value={formData.yearsExperience}
-                    onValueChange={(value) => updateFormData("yearsExperience", value)}
-                  >
-                    <SelectTrigger id="yearsExperience">
-                      <SelectValue placeholder="Select years of experience" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="<1">less than 1 year</SelectItem>
-                      <SelectItem value="1-3">1-3 years</SelectItem>
-                      <SelectItem value="4-6">4-6 years</SelectItem>
-                      <SelectItem value="7-10">7-10 years</SelectItem>
-                      <SelectItem value="10+">10+ years</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <Label htmlFor="experience">Experience (include years, roles, and anything relevant)</Label>
+                  <Textarea
+                    id="experience"
+                    value={formData.experience}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, experience: e.target.value }))}
+                    placeholder="e.g. 6 years in software engineering, previously at Google, now at Microsoft. Specialized in backend systems and mentoring junior devs."
+                    rows={5}
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="currentRole">Current Role</Label>
                   <Input
                     id="currentRole"
                     value={formData.currentRole}
-                    onChange={(e) => updateFormData("currentRole", e.target.value)}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, currentRole: e.target.value }))}
                     placeholder="e.g. Senior Software Engineer"
                   />
                 </div>
@@ -203,7 +204,7 @@ export default function MentorOnboarding() {
                   <Input
                     id="company"
                     value={formData.company}
-                    onChange={(e) => updateFormData("company", e.target.value)}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, company: e.target.value }))}
                     placeholder="e.g. Google, Microsoft, Freelance"
                   />
                 </div>
@@ -216,7 +217,7 @@ export default function MentorOnboarding() {
                 <div className="flex gap-2">
                   <Input
                     value={formData.newSkill}
-                    onChange={(e) => updateFormData("newSkill", e.target.value)}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, newSkill: e.target.value }))}
                     placeholder="e.g. React, Python, System Design"
                     onKeyPress={(e) => e.key === "Enter" && addSkill()}
                   />
@@ -255,9 +256,18 @@ export default function MentorOnboarding() {
                   <Textarea
                     id="bio"
                     value={formData.bio}
-                    onChange={(e) => updateFormData("bio", e.target.value)}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, bio: e.target.value }))}
                     placeholder="Share your background, expertise, and mentorship approach..."
                     rows={6}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="mentoringStyle">Mentoring Style</Label>
+                  <Input
+                    id="mentoringStyle"
+                    value={formData.mentoringStyle}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, mentoringStyle: e.target.value }))}
+                    placeholder="e.g. Guide, Coach, Hands-on, Supportive, etc."
                   />
                 </div>
               </div>
@@ -302,7 +312,7 @@ export default function MentorOnboarding() {
                 <Textarea
                   id="languageInput"
                   value={formData.languageInput}
-                  onChange={(e) => updateFormData("languageInput", e.target.value)}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, languageInput: e.target.value }))}
                   placeholder="e.g., English, Hindi, Spanish"
                   rows={3}
                   className="mt-1"
@@ -315,7 +325,7 @@ export default function MentorOnboarding() {
             <Button variant="outline" onClick={handleBack} disabled={step === 1}>
               <ArrowLeft className="mr-2 h-4 w-4" /> Back
             </Button>
-            <Button onClick={handleNext} className="bg-purple-600 hover:bg-purple-700">
+            <Button onClick={handleNext} className="bg-purple-600 hover:bg-purple-700" disabled={loading}>
               {step === totalSteps ? (
                 <>
                   Complete <Check className="ml-2 h-4 w-4" />

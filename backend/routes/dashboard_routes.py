@@ -6,8 +6,8 @@ dashboard_bp = Blueprint("dashboard", __name__)
 
 @dashboard_bp.route("/", methods=["GET"])
 @token_required
-def dashboard_home():
-    return DashboardController.get_dashboard()
+def dashboard_home(current_user):
+    return DashboardController.get_dashboard(current_user)
 
 @dashboard_bp.route("/user/<string:user_id>", methods=["GET"])
 @token_required

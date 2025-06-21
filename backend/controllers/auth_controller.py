@@ -139,12 +139,10 @@ class AuthController:
             return jsonify({'error': 'Logout failed', 'details': str(e)}), 500
 
     @staticmethod
-    def get_profile():
+    def get_profile(current_user):
         """Get current user profile"""
         try:
-            # g.current_user is set by the token_required decorator
-            # This is the raw user object from the database
-            user_db_object = g.current_user
+            user_db_object = current_user
 
             # Serialize the user object for the response
             api_user_object = {
@@ -170,10 +168,10 @@ class AuthController:
             return jsonify({'error': 'Failed to get profile', 'details': str(e)}), 500
 
     @staticmethod
-    def update_profile():
+    def update_profile(current_user):
         """Update current user's profile"""
         try:
-            user_db_object = g.current_user
+            user_db_object = current_user
             user_id = str(user_db_object['_id'])
             data = request.get_json()
 

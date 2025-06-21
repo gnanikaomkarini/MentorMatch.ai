@@ -13,31 +13,23 @@ ai_bp = Blueprint('ai', __name__)
 
 @ai_bp.route('/match', methods=['POST'])
 @token_required
-def match_mentors():
-    current_user = g.current_user
+def match_mentors(current_user):
     if not current_user:
         return jsonify({'error': 'Authenticated user not found'}), 401
-
     profile = current_user.get('profile', {})
-
     mentee_skills = profile.get('goals', []) 
     mentee_experience = profile.get('experience_level', '')
-    
     if not mentee_skills:
         return jsonify({'message': 'User profile goals are required for matching'}), 400
-    
     try:
         match_result = match_mentor_mentee(mentee_skills, mentee_experience)
         if not match_result:
             return jsonify({'message': 'No mentor match found'}), 404
-
         mentor_id = match_result['mentor']
         mentor = UserModel.get_user_by_id(mentor_id)
         if not mentor:
             return jsonify({'message': 'Mentor not found'}), 404
-
         UserModel.link_mentor_and_mentee(mentor_id, current_user.get('_id'))
-
         return jsonify({
             'message': 'Mentor matching successful',
             'matches': {
@@ -52,18 +44,14 @@ def match_mentors():
 
 @ai_bp.route('/roadmap', methods=['POST'])
 @token_required
-def create_roadmap():
+def create_roadmap(current_user):
     data = request.get_json()
-    current_user = g.current_user
-
     goal = data.get('goal')
     mentee_id = data.get('mentee_id')
-    
     if not goal:
         return jsonify({'message': 'Goal is required'}), 400
     if not mentee_id:
         return jsonify({'message': 'Mentee ID is required'}), 400
-    
     try:
         modules_content = generate_roadmap(goal) 
         db_roadmap = RoadmapModel.create_roadmap(
@@ -73,10 +61,8 @@ def create_roadmap():
             duration_weeks=8, 
             modules=modules_content
         )
-
         if not db_roadmap:
             return jsonify({'message': 'Failed to create roadmap in database'}), 500
-
         serialized_roadmap = {
             "id": str(db_roadmap["_id"]), 
             "menteeId": str(db_roadmap["menteeId"]),
@@ -93,7 +79,6 @@ def create_roadmap():
             "created_at": db_roadmap["created_at"].isoformat(),
             "updated_at": db_roadmap["updated_at"].isoformat()
         }
-        
         return jsonify({
             'message': 'Roadmap generated successfully',
             'roadmap': serialized_roadmap 
