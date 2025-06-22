@@ -20,7 +20,7 @@ load_dotenv()
 
 # Initialize Flask app
 app = Flask(__name__)
-CORS(app, origins=[os.environ.get('FRONTEND_URL')], supports_credentials=True)
+CORS(app, origins=["http://localhost:3000"], supports_credentials=True)
 # Register blueprints
 app.register_blueprint(auth_bp, url_prefix='/api/auth')
 app.register_blueprint(user_bp, url_prefix='/api/users')

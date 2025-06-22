@@ -329,19 +329,32 @@ export default function ChatPage() {
     try {
       console.log("Fetching chat history for mentee:", selectedUser.id)
       
+      // Test basic connectivity first
+      try {
+        const testResponse = await fetch("http://localhost:5000/api/auth/profile", {
+          credentials: "include",
+        })
+        console.log("Backend connectivity test:", testResponse.status)
+      } catch (connectError) {
+        console.error("Backend connection failed:", connectError)
+        throw new Error("Cannot connect to backend server. Please check if the server is running on port 5000.")
+      }
+      
       // First, get the chat history
       const historyResponse = await fetch(`http://localhost:5000/api/chat/history/${selectedUser.id}`, {
         credentials: "include",
       })
       
+      console.log("History response status:", historyResponse.status)
+      
       if (!historyResponse.ok) {
         const errorText = await historyResponse.text()
         console.error("Chat history error:", errorText)
-        throw new Error(`Failed to fetch chat history: ${historyResponse.status}`)
+        throw new Error(`Failed to fetch chat history: ${historyResponse.status} - ${errorText}`)
       }
       
       const chatHistory = await historyResponse.json()
-      console.log("Chat history fetched:", JSON.stringify(chatHistory, null, 2))
+      console.log("Chat history fetched:", chatHistory)
       
       // Validate the format before sending
       if (!chatHistory.mentee_id || !Array.isArray(chatHistory.conversation)) {
@@ -349,15 +362,7 @@ export default function ChatPage() {
         throw new Error("Invalid chat history format received")
       }
       
-      // Validate each conversation item
-      for (const item of chatHistory.conversation) {
-        if (!item.timestamp || !item.sender || !item.message) {
-          console.error("Invalid conversation item:", item)
-          throw new Error("Invalid conversation item format")
-        }
-      }
-      
-      console.log("Sending to AI roadmap generation with payload:", JSON.stringify(chatHistory, null, 2))
+      console.log("Sending to AI roadmap generation...")
       
       // Then, send it to the AI roadmap generation endpoint
       const roadmapResponse = await fetch("http://localhost:5000/api/ai/roadmap", {
@@ -369,15 +374,12 @@ export default function ChatPage() {
         body: JSON.stringify(chatHistory),
       })
       
+      console.log("Roadmap response status:", roadmapResponse.status)
+      
       if (!roadmapResponse.ok) {
         const errorText = await roadmapResponse.text()
-        console.error("Roadmap generation error response:", errorText)
-        try {
-          const errorData = JSON.parse(errorText)
-          throw new Error(errorData.message || errorData.error || `HTTP ${roadmapResponse.status}`)
-        } catch (parseError) {
-          throw new Error(`Failed to generate roadmap: ${roadmapResponse.status} - ${errorText}`)
-        }
+        console.error("Roadmap generation error:", errorText)
+        throw new Error(`Roadmap generation failed: ${roadmapResponse.status} - ${errorText}`)
       }
       
       const result = await roadmapResponse.json()
@@ -385,14 +387,19 @@ export default function ChatPage() {
       
       // Success
       setRoadmapGenerated(true)
-      setTimeout(() => {
-        setIsGeneratingRoadmap(false)
-        setRoadmapGenerated(false)
-      }, 3000)
       
     } catch (error) {
       console.error("Error generating roadmap:", error)
-      setError(`Failed to generate roadmap: ${error.message}`)
+      
+      // More specific error messages
+      if (error.message.includes("Failed to fetch")) {
+        setError("Cannot connect to server. Please check if the backend is running on port 5000.")
+      } else if (error.message.includes("NetworkError")) {
+        setError("Network error. Please check your internet connection and server status.")
+      } else {
+        setError(`Failed to generate roadmap: ${error.message}`)
+      }
+      
       setIsGeneratingRoadmap(false)
     }
   }
