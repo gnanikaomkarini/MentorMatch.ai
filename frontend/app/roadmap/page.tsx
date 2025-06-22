@@ -1,116 +1,116 @@
 "use client"
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
+import { useState, useEffect } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Checkbox } from "@/components/ui/checkbox"
-import { CheckCircle, ChevronDown, ChevronRight, ExternalLink, Play } from "lucide-react"
+import { Textarea } from "@/components/ui/textarea"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { CheckCircle, ChevronDown, ChevronRight, ExternalLink, MessageSquare, AlertCircle, Check, Lock } from "lucide-react"
 import DashboardLayout from "@/components/dashboard-layout"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+
+interface Resource {
+  title: string
+  type: string
+  url?: string
+  completed: boolean
+}
+
+interface Subtopic {
+  title: string
+  resources: Resource[]
+}
+
+interface Module {
+  title: string
+  objective: string
+  subtopics: Subtopic[]
+}
+
+interface RoadmapData {
+  _id: string
+  goal: string
+  menteeId: string
+  mentorId?: string
+  durationWeeks: number
+  status: string
+  modules: Module[]
+  interview_theme_1?: string
+  interview_theme_2?: string
+  approvalStatus?: {
+    mentorId: string
+    status: string
+    comments: string
+  }
+}
 
 export default function RoadmapPage() {
+  const [roadmapData, setRoadmapData] = useState<RoadmapData | null>(null)
+  const [userRole, setUserRole] = useState<string>("")
+  const [userId, setUserId] = useState<string>("")
   const [expandedModules, setExpandedModules] = useState<number[]>([0])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState("")
+  const [interviewContext, setInterviewContext] = useState("")
+  const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const [selectedInterview, setSelectedInterview] = useState<1 | 2>(1)
+  const [updatingResource, setUpdatingResource] = useState<string | null>(null)
+  
+  const searchParams = useSearchParams()
   const router = useRouter()
-  const [roadmap, setRoadmap] = useState({
-    title: "Full Stack Web Development",
-    description: "A comprehensive roadmap to become a full stack web developer",
-    progress: 35,
-    modules: [
-      {
-        id: 1,
-        name: "HTML & CSS Basics",
-        description: "Learn the fundamentals of web development with HTML and CSS",
-        progress: 100,
-        completed: true,
-        resources: [
-          { id: 1, title: "HTML Crash Course", type: "video", completed: true },
-          { id: 2, title: "CSS Fundamentals", type: "video", completed: true },
-          { id: 3, title: "Building Your First Webpage", type: "exercise", completed: true },
-        ],
-      },
-      {
-        id: 2,
-        name: "JavaScript Fundamentals",
-        description: "Master the basics of JavaScript programming",
-        progress: 100,
-        completed: true,
-        resources: [
-          { id: 4, title: "JavaScript Basics", type: "video", completed: true },
-          { id: 5, title: "Working with DOM", type: "video", completed: true },
-          { id: 6, title: "JavaScript Exercises", type: "exercise", completed: true },
-        ],
-      },
-      {
-        id: 3,
-        name: "React Fundamentals",
-        description: "Learn the basics of React and component-based architecture",
-        progress: 40,
-        completed: false,
-        resources: [
-          { id: 7, title: "Introduction to React", type: "video", completed: true },
-          { id: 8, title: "React Components", type: "video", completed: true },
-          { id: 9, title: "State and Props", type: "video", completed: false },
-          { id: 10, title: "React Hooks", type: "video", completed: false },
-          { id: 11, title: "Building a Todo App", type: "exercise", completed: false },
-        ],
-      },
-      {
-        id: 4,
-        name: "Node.js & Express",
-        description: "Build server-side applications with Node.js and Express",
-        progress: 0,
-        completed: false,
-        resources: [
-          { id: 12, title: "Node.js Basics", type: "video", completed: false },
-          { id: 13, title: "Express Framework", type: "video", completed: false },
-          { id: 14, title: "RESTful API Design", type: "video", completed: false },
-          { id: 15, title: "Building an API", type: "exercise", completed: false },
-        ],
-      },
-      {
-        id: 5,
-        name: "Database Design",
-        description: "Learn about databases and how to design efficient schemas",
-        progress: 0,
-        completed: false,
-        resources: [
-          { id: 16, title: "SQL Fundamentals", type: "video", completed: false },
-          { id: 17, title: "NoSQL Databases", type: "video", completed: false },
-          { id: 18, title: "Database Schema Design", type: "video", completed: false },
-          { id: 19, title: "Implementing a Database", type: "exercise", completed: false },
-        ],
-      },
-      {
-        id: 6,
-        name: "Authentication & Security",
-        description: "Implement user authentication and secure your applications",
-        progress: 0,
-        completed: false,
-        resources: [
-          { id: 20, title: "Authentication Basics", type: "video", completed: false },
-          { id: 21, title: "JWT Authentication", type: "video", completed: false },
-          { id: 22, title: "Security Best Practices", type: "video", completed: false },
-          { id: 23, title: "Implementing Auth", type: "exercise", completed: false },
-        ],
-      },
-      {
-        id: 7,
-        name: "Deployment & DevOps",
-        description: "Learn how to deploy and manage your applications",
-        progress: 0,
-        completed: false,
-        resources: [
-          { id: 24, title: "Deployment Basics", type: "video", completed: false },
-          { id: 25, title: "CI/CD Pipelines", type: "video", completed: false },
-          { id: 26, title: "Docker Containers", type: "video", completed: false },
-          { id: 27, title: "Deploying Your App", type: "exercise", completed: false },
-        ],
-      },
-    ],
-  })
+  const roadmapId = searchParams.get('id')
+
+  useEffect(() => {
+    if (!roadmapId) {
+      setError("No roadmap ID provided")
+      setLoading(false)
+      return
+    }
+
+    const fetchRoadmap = async () => {
+      setLoading(true)
+      setError("")
+      try {
+        // Get user profile first
+        const profileRes = await fetch("http://localhost:5000/api/auth/profile", {
+          credentials: "include",
+        })
+        const profileData = await profileRes.json()
+        if (!profileRes.ok) {
+          setError("Failed to fetch user profile")
+          return
+        }
+        
+        setUserRole(profileData.user.role)
+        setUserId(profileData.user.id)
+
+        // Get roadmap data
+        const roadmapRes = await fetch(`http://localhost:5000/api/roadmaps/${roadmapId}`, {
+          credentials: "include",
+        })
+        const roadmapData = await roadmapRes.json()
+        
+        if (!roadmapRes.ok) {
+          setError(roadmapData.message || "Failed to fetch roadmap")
+          return
+        }
+        
+        setRoadmapData(roadmapData)
+      } catch (err) {
+        setError("Failed to fetch roadmap data")
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchRoadmap()
+  }, [roadmapId])
 
   const toggleModule = (index: number) => {
     setExpandedModules((prev) => {
@@ -122,344 +122,705 @@ export default function RoadmapPage() {
     })
   }
 
-  const toggleResourceCompletion = (moduleIndex: number, resourceId: number) => {
-    setRoadmap((prev) => {
-      const newModules = prev.modules.map((module, idx) =>
-        idx === moduleIndex
-          ? {
-              ...module,
-              resources: module.resources.map((resource) =>
-                resource.id === resourceId ? { ...resource, completed: !resource.completed } : resource
-              ),
-              progress: Math.round(
-                (module.resources.filter((r) => r.completed).length /
-                  module.resources.length +
-                  (module.resources.find((r) => r.id === resourceId)?.completed ? -1 : 1) /
-                  module.resources.length) *
-                  100
-              ),
-              completed: module.resources.every((r) =>
-                r.id === resourceId ? !r.completed : r.completed
-              ),
+  // Get the first incomplete resource in the entire roadmap
+  const getFirstIncompleteResource = () => {
+    if (!roadmapData) return null
+    
+    for (let moduleIndex = 0; moduleIndex < roadmapData.modules.length; moduleIndex++) {
+      const module = roadmapData.modules[moduleIndex]
+      for (let subtopicIndex = 0; subtopicIndex < module.subtopics.length; subtopicIndex++) {
+        const subtopic = module.subtopics[subtopicIndex]
+        for (let resourceIndex = 0; resourceIndex < subtopic.resources.length; resourceIndex++) {
+          const resource = subtopic.resources[resourceIndex]
+          if (!resource.completed) {
+            return { moduleIndex, subtopicIndex, resourceIndex }
+          }
+        }
+      }
+    }
+    return null
+  }
+
+  // Check if a resource can be modified
+  const canModifyResource = (moduleIndex: number, subtopicIndex: number, resourceIndex: number) => {
+    if (!roadmapData || userRole !== "mentee") return false
+    
+    const firstIncomplete = getFirstIncompleteResource()
+    if (!firstIncomplete) return false // All resources completed
+    
+    const currentResource = roadmapData.modules[moduleIndex].subtopics[subtopicIndex].resources[resourceIndex]
+    
+    // If resource is completed
+    if (currentResource.completed) {
+      // Check if this is in a subtopic that has been started but not completed
+      const subtopic = roadmapData.modules[moduleIndex].subtopics[subtopicIndex]
+      const subtopicCompleted = subtopic.resources.every(r => r.completed)
+      const subtopicStarted = subtopic.resources.some(r => r.completed)
+      
+      // If subtopic is completed and we've moved past it, can't uncheck
+      if (subtopicCompleted) {
+        // Check if any later subtopic has been started
+        for (let mi = 0; mi < roadmapData.modules.length; mi++) {
+          for (let si = 0; si < roadmapData.modules[mi].subtopics.length; si++) {
+            // If this is a later subtopic (either same module, later subtopic, or later module)
+            if (mi > moduleIndex || (mi === moduleIndex && si > subtopicIndex)) {
+              const laterSubtopic = roadmapData.modules[mi].subtopics[si]
+              if (laterSubtopic.resources.some(r => r.completed)) {
+                return false // Can't uncheck because later work has been started
+              }
             }
-          : module
+          }
+        }
+      }
+      
+      // Can uncheck if it's the last completed resource in sequence
+      return (
+        moduleIndex === firstIncomplete.moduleIndex &&
+        subtopicIndex === firstIncomplete.subtopicIndex &&
+        resourceIndex === firstIncomplete.resourceIndex - 1
+      ) || (
+        // Or if we're at the end of a subtopic and the next subtopic hasn't been started
+        resourceIndex === subtopic.resources.length - 1 &&
+        !hasLaterWorkStarted(moduleIndex, subtopicIndex)
       )
-      return { ...prev, modules: newModules }
+    } else {
+      // If resource is not completed, can only check if it's the next in sequence
+      return (
+        moduleIndex === firstIncomplete.moduleIndex &&
+        subtopicIndex === firstIncomplete.subtopicIndex &&
+        resourceIndex === firstIncomplete.resourceIndex
+      )
+    }
+  }
+
+  // Check if any work has been started after the given subtopic
+  const hasLaterWorkStarted = (moduleIndex: number, subtopicIndex: number) => {
+    if (!roadmapData) return false
+    
+    for (let mi = 0; mi < roadmapData.modules.length; mi++) {
+      for (let si = 0; si < roadmapData.modules[mi].subtopics.length; si++) {
+        // If this is a later subtopic
+        if (mi > moduleIndex || (mi === moduleIndex && si > subtopicIndex)) {
+          const laterSubtopic = roadmapData.modules[mi].subtopics[si]
+          if (laterSubtopic.resources.some(r => r.completed)) {
+            return true
+          }
+        }
+      }
+    }
+    return false
+  }
+
+  // Get tooltip message for locked resources
+  const getResourceTooltip = (moduleIndex: number, subtopicIndex: number, resourceIndex: number) => {
+    if (userRole !== "mentee") return "Only mentees can modify resource completion"
+    
+    const canModify = canModifyResource(moduleIndex, subtopicIndex, resourceIndex)
+    const resource = roadmapData?.modules[moduleIndex].subtopics[subtopicIndex].resources[resourceIndex]
+    
+    if (!resource) return ""
+    
+    if (canModify) return ""
+    
+    if (resource.completed) {
+      return "Cannot uncheck: Later work has been started"
+    } else {
+      return "Complete previous resources first"
+    }
+  }
+
+  const toggleResourceCompletion = async (moduleIndex: number, subtopicIndex: number, resourceIndex: number) => {
+    if (!canModifyResource(moduleIndex, subtopicIndex, resourceIndex) || !roadmapData) return
+
+    const resource = roadmapData.modules[moduleIndex].subtopics[subtopicIndex].resources[resourceIndex]
+    const resourceId = `${moduleIndex}-${subtopicIndex}-${resourceIndex}`
+    
+    // Store original state for potential rollback
+    const originalCompleted = resource.completed
+    const newCompletedState = !resource.completed
+    
+    // Immediately update the UI to show the new state
+    setRoadmapData(prev => {
+      if (!prev) return prev
+      const newData = { ...prev }
+      newData.modules[moduleIndex].subtopics[subtopicIndex].resources[resourceIndex].completed = newCompletedState
+      return newData
     })
+    
+    // Set updating state for subtle loading indicator (but don't dim the main state)
+    setUpdatingResource(resourceId)
+    
+    try {
+      const response = await fetch(`http://localhost:5000/api/roadmaps/${roadmapId}/resource/${resourceId}/toggle`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          completed: newCompletedState
+        })
+      })
+
+      if (!response.ok) {
+        // Only revert on error
+        setRoadmapData(prev => {
+          if (!prev) return prev
+          const newData = { ...prev }
+          newData.modules[moduleIndex].subtopics[subtopicIndex].resources[resourceIndex].completed = originalCompleted
+          return newData
+        })
+        setError("Failed to update resource completion")
+      }
+    } catch (err) {
+      // Only revert on error
+      setRoadmapData(prev => {
+        if (!prev) return prev
+        const newData = { ...prev }
+        newData.modules[moduleIndex].subtopics[subtopicIndex].resources[resourceIndex].completed = originalCompleted
+        return newData
+      })
+      setError("Failed to update resource completion")
+    } finally {
+      setUpdatingResource(null)
+    }
   }
 
-  const areAllResourcesCompletedUpToModule = (moduleId: number) => {
-    return roadmap.modules
-      .filter((module) => module.id <= moduleId)
-      .every((module) => module.resources.every((resource) => resource.completed))
+  const calculateModuleProgress = (module: Module) => {
+    const totalResources = module.subtopics.reduce((acc, subtopic) => acc + subtopic.resources.length, 0)
+    const completedResources = module.subtopics.reduce(
+      (acc, subtopic) => acc + subtopic.resources.filter(r => r.completed).length, 0
+    )
+    return totalResources > 0 ? Math.round((completedResources / totalResources) * 100) : 0
   }
 
-  const isModuleUnlocked = (moduleIndex: number) => {
-    if (moduleIndex === 0) return true
-    return roadmap.modules[moduleIndex - 1].resources.every((resource) => resource.completed)
+  const isModuleCompleted = (module: Module) => {
+    return module.subtopics.every(subtopic => 
+      subtopic.resources.every(resource => resource.completed)
+    )
   }
 
-  const handleTakeInterview = (moduleId: number) => {
-    router.push(`/roadmap/interview?moduleId=${moduleId}`)
+  const calculateOverallProgress = () => {
+    if (!roadmapData) return 0
+    const totalModules = roadmapData.modules.length
+    const completedModules = roadmapData.modules.filter(isModuleCompleted).length
+    return totalModules > 0 ? Math.round((completedModules / totalModules) * 100) : 0
   }
 
-  const handleTakeAssessment = (moduleId: number) => {
-    router.push(`/roadmap/assessment?moduleId=${moduleId}`)
+  const areModulesCompletedUpTo = (moduleIndex: number) => {
+    if (!roadmapData) return false
+    return roadmapData.modules.slice(0, moduleIndex + 1).every(isModuleCompleted)
   }
+
+  const canTakeInterview = (interviewNumber: 1 | 2) => {
+    if (!roadmapData) return false
+    
+    // Interview 1: halfway point (after 50% of modules)
+    // Interview 2: at the end (after all modules)
+    const requiredModules = interviewNumber === 1 
+      ? Math.ceil(roadmapData.modules.length / 2)
+      : roadmapData.modules.length
+
+    const modulesCompleted = areModulesCompletedUpTo(requiredModules - 1)
+    const hasTheme = interviewNumber === 1 
+      ? !!roadmapData.interview_theme_1 
+      : !!roadmapData.interview_theme_2
+
+    return modulesCompleted && hasTheme
+  }
+
+  const getInterviewTooltip = (interviewNumber: 1 | 2) => {
+    if (!roadmapData) return ""
+    
+    const requiredModules = interviewNumber === 1 
+      ? Math.ceil(roadmapData.modules.length / 2)
+      : roadmapData.modules.length
+    
+    const modulesCompleted = areModulesCompletedUpTo(requiredModules - 1)
+    const hasTheme = interviewNumber === 1 
+      ? !!roadmapData.interview_theme_1 
+      : !!roadmapData.interview_theme_2
+
+    if (!modulesCompleted) {
+      return `Complete first ${requiredModules} modules to unlock this interview`
+    }
+    if (!hasTheme) {
+      return "Ask your mentor to set the interview context"
+    }
+    return "Ready to take interview"
+  }
+
+  const handleSetInterviewContext = async () => {
+    if (!interviewContext.trim()) return
+
+    try {
+      const response = await fetch(`http://localhost:5000/api/roadmaps/interview/add`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          roadmap_id: roadmapId,
+          interview_num: selectedInterview,
+          context: interviewContext
+        })
+      })
+
+      if (response.ok) {
+        // Update local state
+        setRoadmapData(prev => {
+          if (!prev) return prev
+          const newData = { ...prev }
+          if (selectedInterview === 1) {
+            newData.interview_theme_1 = interviewContext
+          } else {
+            newData.interview_theme_2 = interviewContext
+          }
+          return newData
+        })
+        setInterviewContext("")
+        setIsDialogOpen(false)
+      } else {
+        setError("Failed to set interview context")
+      }
+    } catch (err) {
+      setError("Failed to set interview context")
+    }
+  }
+
+  if (loading) {
+    return (
+      <DashboardLayout userRole={userRole}>
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto"></div>
+            <p className="mt-4 text-gray-600">Loading roadmap...</p>
+          </div>
+        </div>
+      </DashboardLayout>
+    )
+  }
+
+  if (error) {
+    return (
+      <DashboardLayout userRole={userRole}>
+        <Alert variant="destructive" className="max-w-md mx-auto mt-8">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      </DashboardLayout>
+    )
+  }
+
+  if (!roadmapData) {
+    return (
+      <DashboardLayout userRole={userRole}>
+        <div className="text-center mt-8">
+          <p className="text-gray-600">No roadmap found</p>
+        </div>
+      </DashboardLayout>
+    )
+  }
+
+  const overallProgress = calculateOverallProgress()
 
   return (
-    <DashboardLayout userRole="mentee">
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">{roadmap.title}</h1>
-          <p className="text-gray-500 dark:text-gray-400 mt-2">{roadmap.description}</p>
-        </div>
+    <DashboardLayout userRole={userRole}>
+      <TooltipProvider>
+        <div className="space-y-6">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">{roadmapData.goal}</h1>
+            <p className="text-gray-500 dark:text-gray-400 mt-2">
+              {roadmapData.durationWeeks} week learning path • Status: {roadmapData.status}
+            </p>
+          </div>
 
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div className="flex-1 space-y-2">
-            <div className="flex justify-between text-sm">
-              <span>Overall Progress</span>
-              <span>{roadmap.progress}%</span>
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div className="flex-1 space-y-2">
+              <div className="flex justify-between text-sm">
+                <span>Overall Progress</span>
+                <span>{overallProgress}%</span>
+              </div>
+              <Progress value={overallProgress} className="h-2" />
             </div>
-            <Progress value={roadmap.progress} className="h-2" />
           </div>
 
-          <div className="flex gap-2">
-            <Button variant="outline">Request Changes</Button>
-            <Button className="bg-purple-600 hover:bg-purple-700">
-              <Play className="mr-2 h-4 w-4" /> Continue Learning
-            </Button>
-          </div>
-        </div>
+          <Tabs defaultValue="modules" className="space-y-4">
+            <TabsList>
+              <TabsTrigger value="modules">Modules</TabsTrigger>
+              <TabsTrigger value="timeline">Timeline</TabsTrigger>
+            </TabsList>
 
-        <Tabs defaultValue="modules" className="space-y-4">
-          <TabsList>
-            <TabsTrigger value="modules">Modules</TabsTrigger>
-            <TabsTrigger value="timeline">Timeline</TabsTrigger>
-            <TabsTrigger value="certificates">Certificates</TabsTrigger>
-          </TabsList>
+            <TabsContent value="modules" className="space-y-4">
+              {roadmapData.modules.map((module, moduleIndex) => {
+                const moduleProgress = calculateModuleProgress(module)
+                const moduleCompleted = isModuleCompleted(module)
+                const isInterviewModule = moduleIndex === Math.ceil(roadmapData.modules.length / 2) - 1 || 
+                                        moduleIndex === roadmapData.modules.length - 1
 
-          <TabsContent value="modules" className="space-y-4">
-            {roadmap.modules.map((module, index) => (
-            <div key={module.id}>
-              <Card>
-                <CardHeader className="pb-2">
-                  <div className="flex items-center justify-between cursor-pointer" onClick={() => toggleModule(index)}>
-                    <div className="flex items-center space-x-2">
-                      <div
-                        className={`flex items-center justify-center w-8 h-8 rounded-full ${
-                          module.completed
-                            ? "bg-green-100 text-green-600 dark:bg-green-900 dark:text-green-300"
-                            : "bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400"
-                        }`}
-                      >
-                        {module.completed ? <CheckCircle className="h-5 w-5" /> : <span>{index + 1}</span>}
-                      </div>
-                      <div>
-                        <CardTitle className="text-lg">{module.name}</CardTitle>
-                        <CardDescription>{module.description}</CardDescription>
-                      </div>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Badge variant="outline">{module.progress}% Complete</Badge>
-                      {expandedModules.includes(index) ? (
-                        <ChevronDown className="h-5 w-5" />
-                      ) : (
-                        <ChevronRight className="h-5 w-5" />
-                      )}
-                    </div>
-                  </div>
-                </CardHeader>
-
-                {expandedModules.includes(index) && (
-                  <>
-                    <CardContent>
-                      <div className="space-y-4">
-                        {module.resources.map((resource) => (
-                          <div key={resource.id} className="flex items-center space-x-3">
-                            <Checkbox
-                              id={`resource-${resource.id}`}
-                              checked={resource.completed}
-                              onCheckedChange={() => toggleResourceCompletion(index, resource.id)}
-                              disabled={!isModuleUnlocked(index)}
-                            />
-                            <div className="flex-1">
-                              <label
-                                htmlFor={`resource-${resource.id}`}
-                                className={`text-sm font-medium ${resource.completed ? "line-through text-gray-500 dark:text-gray-400" : ""}`}
-                              >
-                                {resource.title}
-                              </label>
-                              <Badge variant="outline" className="ml-2">
-                                {resource.type === "video" ? "Video" : "Exercise"}
-                              </Badge>
+                return (
+                  <div key={moduleIndex}>
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <div className="flex items-center justify-between cursor-pointer" onClick={() => toggleModule(moduleIndex)}>
+                          <div className="flex items-center space-x-2">
+                            <div
+                              className={`flex items-center justify-center w-8 h-8 rounded-full ${
+                                moduleCompleted
+                                  ? "bg-green-100 text-green-600 dark:bg-green-900 dark:text-green-300"
+                                  : "bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400"
+                              }`}
+                            >
+                              {moduleCompleted ? <CheckCircle className="h-5 w-5" /> : <span>{moduleIndex + 1}</span>}
                             </div>
-                            <Button variant="ghost" size="sm">
-                              <ExternalLink className="h-4 w-4" />
-                            </Button>
+                            <div>
+                              <CardTitle className="text-lg">{module.title}</CardTitle>
+                              <CardDescription>{module.objective}</CardDescription>
+                            </div>
                           </div>
-                        ))}
-                      </div>
-                    </CardContent>
+                          <div className="flex items-center space-x-2">
+                            <Badge variant="outline">{moduleProgress}% Complete</Badge>
+                            {expandedModules.includes(moduleIndex) ? (
+                              <ChevronDown className="h-5 w-5" />
+                            ) : (
+                              <ChevronRight className="h-5 w-5" />
+                            )}
+                          </div>
+                        </div>
+                      </CardHeader>
 
-                    <CardFooter>
-                      {module.completed ? (
-                        <div className="flex justify-between w-full">
-                          <div className="flex items-center text-green-600 dark:text-green-400">
-                            <span>Module completed</span>
-                          </div>
-                          <Button
-                            className="bg-purple-600 hover:bg-purple-700"
-                            onClick={() => handleTakeAssessment(module.id)}
-                            disabled={!module.completed}
-                          >
-                            Take Assessment
-                          </Button>
-                        </div>
-                      ) : (
-                        <div className="flex justify-between w-full">
-                          <Button variant="outline">Request Help</Button>
-                          <p className="text-sm text-gray-500 dark:text-gray-400">
-                            Complete all resources to unlock assessment
-                          </p>
-                        </div>
+                      {expandedModules.includes(moduleIndex) && (
+                        <>
+                          <CardContent>
+                            <div className="space-y-6">
+                              {module.subtopics.map((subtopic, subtopicIndex) => (
+                                <div key={subtopicIndex} className="border-l-2 border-gray-200 pl-4">
+                                  <h4 className="font-medium text-sm mb-3">{subtopic.title}</h4>
+                                  <div className="space-y-3">
+                                    {subtopic.resources.map((resource, resourceIndex) => {
+                                      const resourceId = `${moduleIndex}-${subtopicIndex}-${resourceIndex}`
+                                      const isUpdating = updatingResource === resourceId
+                                      const canModify = canModifyResource(moduleIndex, subtopicIndex, resourceIndex)
+                                      const tooltipMessage = getResourceTooltip(moduleIndex, subtopicIndex, resourceIndex)
+                                      
+                                      return (
+                                        <div key={resourceIndex} className={`flex items-center space-x-3 p-3 rounded-lg transition-all duration-300 ${
+                                          resource.completed 
+                                            ? "bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800" 
+                                            : canModify 
+                                              ? "bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800"
+                                              : "bg-gray-25 dark:bg-gray-900/30 border border-gray-100 dark:border-gray-800 opacity-60"
+                                        }`}>
+                                          <div className="relative flex-shrink-0">
+                                            <Tooltip>
+                                              <TooltipTrigger asChild>
+                                                <div>
+                                                  {/* Custom Checkbox Visual */}
+                                                  <div 
+                                                    className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all duration-200 ${
+                                                      resource.completed
+                                                        ? "bg-green-600 border-green-600 text-white"
+                                                        : canModify
+                                                          ? "border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 hover:border-purple-400 cursor-pointer"
+                                                          : "border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800 cursor-not-allowed"
+                                                    }`}
+                                                    onClick={() => canModify && !isUpdating && toggleResourceCompletion(moduleIndex, subtopicIndex, resourceIndex)}
+                                                  >
+                                                    {resource.completed && (
+                                                      <Check className="h-3 w-3" />
+                                                    )}
+                                                    {!canModify && !resource.completed && (
+                                                      <Lock className="h-3 w-3 text-gray-400" />
+                                                    )}
+                                                    {/* Show subtle loading indicator only when updating */}
+                                                    {isUpdating && (
+                                                      <div className="absolute -top-1 -right-1 w-2 h-2 bg-purple-600 rounded-full animate-pulse"></div>
+                                                    )}
+                                                  </div>
+                                                </div>
+                                              </TooltipTrigger>
+                                              {tooltipMessage && (
+                                                <TooltipContent side="top" className="max-w-xs text-center">
+                                                  <p>{tooltipMessage}</p>
+                                                </TooltipContent>
+                                              )}
+                                            </Tooltip>
+                                            
+                                            {/* Hidden actual checkbox for accessibility */}
+                                            <Checkbox
+                                              id={`resource-${resourceId}`}
+                                              checked={resource.completed}
+                                              onCheckedChange={() => canModify && toggleResourceCompletion(moduleIndex, subtopicIndex, resourceIndex)}
+                                              disabled={!canModify || isUpdating}
+                                              className="sr-only"
+                                            />
+                                          </div>
+                                          
+                                          <div className="flex-1 min-w-0">
+                                            <label
+                                              htmlFor={`resource-${resourceId}`}
+                                              className={`text-sm font-medium transition-all duration-200 block ${
+                                                resource.completed 
+                                                  ? "line-through text-green-700 dark:text-green-400" 
+                                                  : canModify
+                                                    ? "text-gray-900 dark:text-gray-100 cursor-pointer"
+                                                    : "text-gray-500 dark:text-gray-500 cursor-not-allowed"
+                                              }`}
+                                              onClick={() => canModify && !isUpdating && toggleResourceCompletion(moduleIndex, subtopicIndex, resourceIndex)}
+                                            >
+                                              {resource.title}
+                                              {/* Show subtle loading text only when updating */}
+                                              {isUpdating && (
+                                                <span className="ml-2 text-xs text-purple-600 animate-pulse">Saving...</span>
+                                              )}
+                                            </label>
+                                            <div className="flex items-center gap-2 mt-1">
+                                              <Badge 
+                                                variant={resource.completed ? "default" : "outline"} 
+                                                className={`text-xs ${
+                                                  resource.completed 
+                                                    ? "bg-green-100 text-green-800 border-green-200 dark:bg-green-900 dark:text-green-200" 
+                                                    : canModify
+                                                      ? ""
+                                                      : "opacity-50"
+                                                }`}
+                                              >
+                                                {resource.type === "youtube" ? "Video" : 
+                                                 resource.type === "other" ? "Article" : resource.type}
+                                              </Badge>
+                                              {resource.completed && (
+                                                <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-300">
+                                                  ✓ Completed
+                                                </Badge>
+                                              )}
+                                              {!canModify && !resource.completed && (
+                                                <Badge variant="outline" className="text-xs bg-gray-50 text-gray-500 border-gray-200 dark:bg-gray-800 dark:text-gray-400">
+                                                  🔒 Locked
+                                                </Badge>
+                                              )}
+                                            </div>
+                                          </div>
+                                          
+                                          {resource.url && (
+                                            <Button 
+                                              variant="ghost" 
+                                              size="sm" 
+                                              asChild
+                                              className={`flex-shrink-0 ${
+                                                resource.completed 
+                                                  ? "text-green-600 hover:text-green-700 hover:bg-green-100 dark:text-green-400 dark:hover:bg-green-900/30" 
+                                                  : canModify
+                                                    ? "text-gray-600 hover:text-gray-700 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700"
+                                                    : "text-gray-400 cursor-not-allowed opacity-50"
+                                              }`}
+                                            >
+                                              <a 
+                                                href={resource.url} 
+                                                target="_blank" 
+                                                rel="noopener noreferrer"
+                                                onClick={(e) => {
+                                                  if (!canModify && !resource.completed) {
+                                                    e.preventDefault()
+                                                  }
+                                                }}
+                                              >
+                                                <ExternalLink className="h-4 w-4" />
+                                              </a>
+                                            </Button>
+                                          )}
+                                        </div>
+                                      )
+                                    })}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </CardContent>
+
+                          <CardFooter>
+                            {moduleCompleted ? (
+                              <div className="flex justify-between w-full">
+                                <div className="flex items-center text-green-600 dark:text-green-400">
+                                  <CheckCircle className="h-4 w-4 mr-2" />
+                                  <span>Module completed</span>
+                                </div>
+                                <Button
+                                  className="bg-purple-600 hover:bg-purple-700"
+                                  onClick={() => router.push(`/roadmap/assessment?moduleId=${moduleIndex}&roadmapId=${roadmapId}`)}
+                                >
+                                  Take Assessment
+                                </Button>
+                              </div>
+                            ) : (
+                              <div className="flex justify-end w-full">
+                                <p className="text-sm text-gray-500 dark:text-gray-400">
+                                  Complete all resources to unlock assessment
+                                </p>
+                              </div>
+                            )}
+                          </CardFooter>
+                        </>
                       )}
-                    </CardFooter>
-                  </>
-                )}
+                    </Card>
+
+                    {/* Interview Buttons with Enhanced Tooltips */}
+                    {isInterviewModule && (
+                      <div className="mt-4 flex justify-end">
+                        {userRole === "mentee" ? (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div>
+                                <Button
+                                  className="bg-purple-600 hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                  onClick={() => {
+                                    const interviewNum = moduleIndex === Math.ceil(roadmapData.modules.length / 2) - 1 ? 1 : 2
+                                    router.push(`/roadmap/interview?moduleId=${moduleIndex}&roadmapId=${roadmapId}&interviewNum=${interviewNum}`)
+                                  }}
+                                  disabled={!canTakeInterview(moduleIndex === Math.ceil(roadmapData.modules.length / 2) - 1 ? 1 : 2)}
+                                >
+                                  Take Interview {moduleIndex === Math.ceil(roadmapData.modules.length / 2) - 1 ? 1 : 2}
+                                </Button>
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="max-w-xs text-center">
+                              <p>{getInterviewTooltip(moduleIndex === Math.ceil(roadmapData.modules.length / 2) - 1 ? 1 : 2)}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        ) : (
+                          // Mentor view remains the same
+                          <div className="space-y-2">
+                            {moduleIndex === Math.ceil(roadmapData.modules.length / 2) - 1 && !roadmapData.interview_theme_1 && (
+                              <Dialog open={isDialogOpen && selectedInterview === 1} onOpenChange={(open) => {
+                                setIsDialogOpen(open)
+                                if (open) setSelectedInterview(1)
+                              }}>
+                                <DialogTrigger asChild>
+                                  <Button variant="outline">Set Interview 1 Context</Button>
+                                </DialogTrigger>
+                                <DialogContent>
+                                  <DialogHeader>
+                                    <DialogTitle>Set Interview 1 Context</DialogTitle>
+                                    <DialogDescription>
+                                      Provide context and themes for the first AI interview (halfway point).
+                                    </DialogDescription>
+                                  </DialogHeader>
+                                  <Textarea
+                                    placeholder="Enter interview context and themes..."
+                                    value={interviewContext}
+                                    onChange={(e) => setInterviewContext(e.target.value)}
+                                    rows={4}
+                                  />
+                                  <DialogFooter>
+                                    <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
+                                      Cancel
+                                    </Button>
+                                    <Button onClick={handleSetInterviewContext}>
+                                      Set Context
+                                    </Button>
+                                  </DialogFooter>
+                                </DialogContent>
+                              </Dialog>
+                            )}
+                            
+                            {moduleIndex === roadmapData.modules.length - 1 && !roadmapData.interview_theme_2 && (
+                              <Dialog open={isDialogOpen && selectedInterview === 2} onOpenChange={(open) => {
+                                setIsDialogOpen(open)
+                                if (open) setSelectedInterview(2)
+                              }}>
+                                <DialogTrigger asChild>
+                                  <Button variant="outline">Set Interview 2 Context</Button>
+                                </DialogTrigger>
+                                <DialogContent>
+                                  <DialogHeader>
+                                    <DialogTitle>Set Interview 2 Context</DialogTitle>
+                                    <DialogDescription>
+                                      Provide context and themes for the final AI interview.
+                                    </DialogDescription>
+                                  </DialogHeader>
+                                  <Textarea
+                                    placeholder="Enter interview context and themes..."
+                                    value={interviewContext}
+                                    onChange={(e) => setInterviewContext(e.target.value)}
+                                    rows={4}
+                                  />
+                                  <DialogFooter>
+                                    <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
+                                      Cancel
+                                    </Button>
+                                    <Button onClick={handleSetInterviewContext}>
+                                      Set Context
+                                    </Button>
+                                  </DialogFooter>
+                                </DialogContent>
+                              </Dialog>
+                            )}
+
+                            {/* Show context set confirmation */}
+                            {moduleIndex === Math.ceil(roadmapData.modules.length / 2) - 1 && roadmapData.interview_theme_1 && (
+                              <p className="text-sm text-green-600">✓ Interview 1 context set</p>
+                            )}
+                            {moduleIndex === roadmapData.modules.length - 1 && roadmapData.interview_theme_2 && (
+                              <p className="text-sm text-green-600">✓ Interview 2 context set</p>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </TabsContent>
+
+            <TabsContent value="timeline" className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Learning Timeline</CardTitle>
+                  <CardDescription>Your learning progress over time</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-8">
+                    <div className="relative">
+                      <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-gray-200 dark:bg-gray-800"></div>
+                      <div className="space-y-8">
+                        {roadmapData.modules.map((module, index) => {
+                          const moduleCompleted = isModuleCompleted(module)
+                          const moduleProgress = calculateModuleProgress(module)
+                          
+                          return (
+                            <div key={index} className="relative pl-10">
+                              <div className={`absolute left-0 top-1 w-8 h-8 rounded-full flex items-center justify-center ${
+                                moduleCompleted
+                                  ? "bg-green-100 dark:bg-green-900"
+                                  : "bg-gray-100 dark:bg-gray-800"
+                              }`}>
+                                {moduleCompleted ? (
+                                  <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400" />
+                                ) : (
+                                  <span className="text-gray-500 dark:text-gray-400">{index + 1}</span>
+                                )}
+                              </div>
+                              <div>
+                                <h3 className="font-medium">{module.title}</h3>
+                                <p className="text-sm text-gray-500 dark:text-gray-400">
+                                  {moduleCompleted 
+                                    ? "Completed" 
+                                    : `${moduleProgress}% complete`
+                                  }
+                                </p>
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
               </Card>
-
-              {(module.id === 3 || module.id === 7) && (
-                <div className="mt-4 flex justify-end">
-                  <Button
-                    className="bg-purple-600 hover:bg-purple-700"
-                    onClick={() => handleTakeInterview(module.id)}
-                    disabled={!areAllResourcesCompletedUpToModule(module.id)}
-                  >
-                    Take Interview
-                  </Button>
-                </div>
-              )}
-            </div>
-          ))}
-          </TabsContent>
-
-          <TabsContent value="timeline" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Learning Timeline</CardTitle>
-                <CardDescription>Your projected learning schedule</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-8">
-                  <div className="relative">
-                    <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-gray-200 dark:bg-gray-800"></div>
-
-                    <div className="space-y-8">
-                      <div className="relative pl-10">
-                        <div className="absolute left-0 top-1 w-8 h-8 rounded-full bg-green-100 dark:bg-green-900 flex items-center justify-center">
-                          <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400" />
-                        </div>
-                        <div>
-                          <h3 className="font-medium">HTML & CSS Basics</h3>
-                          <p className="text-sm text-gray-500 dark:text-gray-400">Completed on June 1, 2025</p>
-                        </div>
-                      </div>
-
-                      <div className="relative pl-10">
-                        <div className="absolute left-0 top-1 w-8 h-8 rounded-full bg-green-100 dark:bg-green-900 flex items-center justify-center">
-                          <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400" />
-                        </div>
-                        <div>
-                          <h3 className="font-medium">JavaScript Fundamentals</h3>
-                          <p className="text-sm text-gray-500 dark:text-gray-400">Completed on June 8, 2025</p>
-                        </div>
-                      </div>
-
-                      <div className="relative pl-10">
-                        <div className="absolute left-0 top-1 w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-gray-500 dark:text-gray-400">
-                          3
-                        </div>
-                        <div>
-                          <h3 className="font-medium">React Fundamentals</h3>
-                          <p className="text-sm text-gray-500 dark:text-gray-400">In progress (40% complete)</p>
-                          <p className="text-sm text-gray-500 dark:text-gray-400">
-                            Estimated completion: June 22, 2025
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="relative pl-10">
-                        <div className="absolute left-0 top-1 w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-gray-500 dark:text-gray-400">
-                          4
-                        </div>
-                        <div>
-                          <h3 className="font-medium">Node.js & Express</h3>
-                          <p className="text-sm text-gray-500 dark:text-gray-400">Estimated: June 23 - July 7, 2025</p>
-                        </div>
-                      </div>
-
-                      <div className="relative pl-10">
-                        <div className="absolute left-0 top-1 w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-gray-500 dark:text-gray-400">
-                          5
-                        </div>
-                        <div>
-                          <h3 className="font-medium">Database Design</h3>
-                          <p className="text-sm text-gray-500 dark:text-gray-400">Estimated: July 8 - July 21, 2025</p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="certificates" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Available Certificates</CardTitle>
-                <CardDescription>Complete your learning path to earn certificates</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-6">
-                  <div className="border rounded-lg p-4">
-                    <div className="flex flex-col md:flex-row md:items-center md:justify-between">
-                      <div>
-                        <h3 className="font-medium">Full Stack Web Development - Standard</h3>
-                        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                          Complete all modules and pass the standard assessment
-                        </p>
-                        <div className="flex items-center text-sm text-gray-500 dark:text-gray-400 mt-2">
-                          <Progress value={35} className="h-2 w-24 mr-2" />
-                          <span>35% Progress</span>
-                        </div>
-                      </div>
-                      <Button variant="outline" className="mt-4 md:mt-0" disabled>
-                        Take Assessment
-                      </Button>
-                    </div>
-                  </div>
-
-                  <div className="border rounded-lg p-4">
-                    <div className="flex flex-col md:flex-row md:items-center md:justify-between">
-                      <div>
-                        <h3 className="font-medium">Full Stack Web Development - Advanced</h3>
-                        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                          Complete all modules and pass the advanced assessment
-                        </p>
-                        <div className="flex items-center text-sm text-gray-500 dark:text-gray-400 mt-2">
-                          <Progress value={35} className="h-2 w-24 mr-2" />
-                          <span>35% Progress</span>
-                        </div>
-                      </div>
-                      <Button variant="outline" className="mt-4 md:mt-0" disabled>
-                        Take Assessment
-                      </Button>
-                    </div>
-                  </div>
-
-                  <div className="border rounded-lg p-4 bg-gray-50 dark:bg-gray-800">
-                    <div className="flex flex-col md:flex-row md:items-center md:justify-between">
-                      <div>
-                        <h3 className="font-medium">HTML & CSS Fundamentals</h3>
-                        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                          Complete the HTML & CSS module and pass the assessment
-                        </p>
-                        <div className="flex items-center text-sm text-green-600 dark:text-green-400 mt-2">
-                          <CheckCircle className="h-4 w-4 mr-1" />
-                          <span>Completed</span>
-                        </div>
-                      </div>
-                      <Button variant="outline" className="mt-4 md:mt-0">
-                        View Certificate
-                      </Button>
-                    </div>
-                  </div>
-
-                  <div className="border rounded-lg p-4 bg-gray-50 dark:bg-gray-800">
-                    <div className="flex flex-col md:flex-row md:items-center md:justify-between">
-                      <div>
-                        <h3 className="font-medium">JavaScript Fundamentals</h3>
-                        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                          Complete the JavaScript module and pass the assessment
-                        </p>
-                        <div className="flex items-center text-sm text-green-600 dark:text-green-400 mt-2">
-                          <CheckCircle className="h-4 w-4 mr-1" />
-                          <span>Completed</span>
-                        </div>
-                      </div>
-                      <Button variant="outline" className="mt-4 md:mt-0">
-                        View Certificate
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
-      </div>
+            </TabsContent>
+          </Tabs>
+        </div>
+      </TooltipProvider>
     </DashboardLayout>
   )
 }
