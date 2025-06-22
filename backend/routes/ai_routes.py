@@ -156,12 +156,15 @@ def interview():
             goal = interview['goal']
             theme = interview['interview_theme_2']        
 
-        if not audio_file or not roadmap_id or not history_json or not goal or not theme:
-            return jsonify({'message': 'audio, roadmap_id, history, goal and theme are required'}), 400
+        if not roadmap_id or not history_json or not goal or not theme:
+            return jsonify({'message': 'roadmap_id, history, goal and theme are required'}), 400
 
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as tmp_audio:
-            audio_path = tmp_audio.name
-            audio_file.save(audio_path)
+        if audio_file is not None:
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as tmp_audio:
+                audio_path = tmp_audio.name
+                audio_file.save(audio_path)
+        else:
+            audio_path = None
 
         user_answer, next_question = generate_interview_questions(audio_path, history_json, goal, theme)
 
