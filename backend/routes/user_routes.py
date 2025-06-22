@@ -1,8 +1,10 @@
 from flask import Blueprint, request, jsonify
 from bson.objectid import ObjectId
+import datetime
 
 from database.db import users, notifications
 from middleware.auth_middleware import token_required
+from utils.serialization import fix_object_ids
 
 user_bp = Blueprint('users', __name__)
 
@@ -63,7 +65,9 @@ def get_mentees(current_user):
         if mentee:
             mentees.append({
                 'id': str(mentee['_id']),
-                'name': mentee.get('name', '')
+                'name': mentee.get('name', ''),
+                'username': mentee.get('username', ''),
+                'role': 'mentee'
             })
     return jsonify(mentees), 200
 
@@ -262,3 +266,35 @@ def get_connections(current_user):
                 connections.append(mentor)
     
     return jsonify(connections), 200
+
+@user_bp.route('/mymentor', methods=['GET'])
+@token_required
+def get_my_mentor(current_user):
+    if current_user['role'] != 'mentee':
+        return jsonify({'message': 'Only mentees can use this endpoint'}), 403
+
+    mentor_ids = current_user.get('mentors', [])
+    if not mentor_ids:
+        return jsonify({'message': 'No mentor found'}), 404
+
+    mentor_id = mentor_ids[0]
+    if isinstance(mentor_id, dict) and '$oid' in mentor_id:
+        mentor_id = mentor_id['$oid']
+    elif isinstance(mentor_id, ObjectId):
+        mentor_id = str(mentor_id)
+
+    mentor = users.find_one({'_id': ObjectId(mentor_id), 'role': 'mentor'}, {
+        'password': 0,
+        'email': 0
+    })
+    if not mentor:
+        return jsonify({'message': 'Mentor not found'}), 404
+
+    mentor_data = {
+        'id': str(mentor['_id']),
+        'name': mentor.get('name', ''),
+        'username': mentor.get('username', ''),
+        'role': 'mentor'
+    }
+    
+    return jsonify(mentor_data), 200
