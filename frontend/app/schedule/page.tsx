@@ -51,17 +51,6 @@ export default function SchedulePage() {
         setUserRole(dataProfile.user.role)
         setUserName(dataProfile.user.name)
         setUserEmail(dataProfile.user.email)
-        if (dataProfile.user.role === "mentor") {
-          // Fetch mentee names for scheduling
-          const menteeIds = dataProfile.user.mentees || []
-          const menteeList = []
-          for (const id of menteeIds) {
-            const res = await fetch(`http://localhost:5000/api/users/mentees/${id}`, { credentials: "include" })
-            const d = await res.json()
-            if (res.ok) menteeList.push({ id, name: d.name })
-          }
-          setMentees(menteeList)
-        }
       } catch (err: any) {
         setError(err.message || "Failed to load user data")
       } finally {
