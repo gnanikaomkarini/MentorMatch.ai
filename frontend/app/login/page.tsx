@@ -2,19 +2,17 @@
 
 import type React from "react"
 
-import { useState } from "react"
-import { useSearchParams } from "next/navigation"
-import Link from "next/link"
+import Navbar from "@/components/navbar"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { AlertCircle } from "lucide-react"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import Navbar from "@/components/navbar"
-import Footer from "@/components/footer"
-import { GraduationCap, Users } from "lucide-react"
+import { AlertCircle, GraduationCap, Users } from "lucide-react"
+import Link from "next/link"
+import { useSearchParams } from "next/navigation"
+import { useState } from "react"
 
 export default function LoginPage() {
   const searchParams = useSearchParams()
@@ -173,7 +171,6 @@ export default function LoginPage() {
         </Card>
       </div>
 
-      <Footer />
     </div>
   )
 }

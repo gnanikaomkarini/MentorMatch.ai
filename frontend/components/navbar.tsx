@@ -1,11 +1,11 @@
 "use client"
 
-import { useState } from "react"
-import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { Menu, X } from "lucide-react"
-import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
+import { Menu, X } from "lucide-react"
+import Link from "next/link"
+import { usePathname } from "next/navigation"
+import { useState } from "react"
 import { ModeToggle } from "./mode-toggle"
 
 export default function Navbar() {
@@ -15,7 +15,7 @@ export default function Navbar() {
   const navItems = [
     { name: "Home", href: "/" },
     { name: "About", href: "/about" },
-    { name: "Contact", href: "/contact" },
+    //{ name: "Contact", href: "/contact" },
   ]
 
   return (

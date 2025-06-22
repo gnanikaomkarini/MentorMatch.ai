@@ -1,11 +1,8 @@
 "use client"
 
-import { useState } from "react"
-import { useSearchParams } from "next/navigation"
-import Link from "next/link"
+import Navbar from "@/components/navbar"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import {
   Card,
   CardContent,
@@ -14,11 +11,13 @@ import {
   CardHeader,
   CardTitle
 } from "@/components/ui/card"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { AlertCircle, GraduationCap, Users } from "lucide-react"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import Navbar from "@/components/navbar"
-import Footer from "@/components/footer"
+import { AlertCircle, GraduationCap, Users } from "lucide-react"
+import Link from "next/link"
+import { useSearchParams } from "next/navigation"
+import { useState } from "react"
 
 export default function SignupPage() {
   const searchParams = useSearchParams()
@@ -176,7 +175,6 @@ export default function SignupPage() {
         </Card>
       </div>
 
-      <Footer />
     </div>
   )
 }

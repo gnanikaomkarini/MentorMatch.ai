@@ -1,9 +1,7 @@
-import Footer from "@/components/footer"
 import Navbar from "@/components/navbar"
 import { Button } from "@/components/ui/button"
 import { ArrowRight, Award, BookOpen, Calendar, CheckCircle, Users } from "lucide-react"
 import Link from "next/link"
-import type React from "react"
 
 export default function LandingPage() {
   return (
@@ -87,29 +85,30 @@ export default function LandingPage() {
               answer="Sign up as a mentee, complete your profile, and our AI will match you with suitable mentors. You'll then receive a personalized roadmap based on your goals and timeframe."
             />
             <FAQItem
-              question="How are mentors vetted?"
-              answer="All mentors go through a thorough application process, including verification of their expertise, experience, and teaching ability. We also collect and monitor feedback from mentees."
-            />
-            <FAQItem
-              question="Is there a cost to use MentorMatch.ai?"
-              answer="We offer both free and premium tiers. The free tier includes basic matching and limited roadmap features, while premium unlocks full access to all features, including unlimited mentor sessions."
-            />
-            <FAQItem
               question="How does the AI matching work?"
               answer="Our AI analyzes your skills, goals, learning style, and availability to find mentors who are most compatible with your needs. It considers factors like expertise areas, communication preferences, and personality traits."
             />
             <FAQItem
+              question="Is MentorMatch.ai free to use?"
+              answer="Yes, MentorMatch.ai is completely free for all users. We believe in making personalized mentorship accessible to everyone, without any subscription or hidden fees."
+            />
+            <FAQItem
               question="How much time do I need to commit?"
-              answer="You decide your own commitment level. During onboarding, you'll specify how much time you can dedicate weekly, and the AI will generate a roadmap that fits your schedule."
+              answer="You decide your own commitment level. During onboarding, you can specify how much time you can dedicate weekly, and the AI will generate a roadmap that fits your schedule."
             />
             <FAQItem
-              question="What kind of certificates can I earn?"
-              answer="You can earn skill-specific certificates at two levels: Standard and Advanced. These certificates validate your knowledge and can be shared on your professional profiles."
+              question="How is my progress tracked?"
+              answer="Your roadmap includes modules and milestones. As you complete them, your progress is updated automatically, and mentors give regular feedback."
             />
             <FAQItem
-              question="Can I change my mentor if we're not a good match?"
-              answer="Yes, you can request a new mentor match if you feel your current match isn't working out. Our goal is to ensure productive mentorship relationships."
+              question="Is there support for non-English speakers?"
+              answer="Yes! We support multiple languages and try to match you with mentors who can speak your preferred language."
             />
+            <FAQItem
+              question="Will I receive a certificate after completing my mentorship?"
+              answer="Yes, upon successful completion of your learning roadmap, you will receive a certificate of completion. This certificate can be shared on your resume or professional profiles."
+            />
+
           </div>
         </div>
       </section>
@@ -132,7 +131,6 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <Footer />
     </div>
   )
 }

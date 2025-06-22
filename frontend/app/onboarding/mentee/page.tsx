@@ -1,17 +1,16 @@
 "use client"
 
-import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Label } from "@/components/ui/label"
-import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { Progress } from "@/components/ui/progress"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Textarea } from "@/components/ui/textarea"
 import { ArrowLeft, ArrowRight, Check, Plus, X } from "lucide-react"
-import Footer from "@/components/footer"
 import { useRouter } from "next/navigation"
+import { useEffect, useState } from "react"
 
 interface UserData {
   name: string;
@@ -367,7 +366,6 @@ export default function MenteeOnboarding() {
           </CardFooter>
         </Card>
       </div>
-      <Footer />
     </div>
   )
 }

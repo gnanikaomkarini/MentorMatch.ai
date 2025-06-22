@@ -1,4 +1,3 @@
-import Footer from "@/components/footer"
 import Navbar from "@/components/navbar"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
@@ -163,7 +162,6 @@ export default function AboutPage() {
         </div>
       </section>
 
-      <Footer />
     </div>
   )
 }

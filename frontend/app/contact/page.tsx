@@ -2,7 +2,6 @@
 
 import type React from "react"
 
-import Footer from "@/components/footer"
 import Navbar from "@/components/navbar"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -127,7 +126,6 @@ export default function ContactPage() {
         </div>
       </div>
 
-      <Footer />
     </div>
   )
 }
