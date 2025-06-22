@@ -1,106 +1,310 @@
 "use client"
 
-import type React from "react"
-
-import { useState, useRef, useEffect } from "react"
+import { useState, useRef, useEffect, useCallback } from "react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Badge } from "@/components/ui/badge"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Textarea } from "@/components/ui/textarea"
-import { Calendar, FileText, PaperclipIcon, Send, Sparkles } from "lucide-react"
+import { PaperclipIcon, Send } from "lucide-react"
 import DashboardLayout from "@/components/dashboard-layout"
 
+interface User {
+  id: string
+  name: string
+  username: string
+  role: string
+}
+
+interface Message {
+  _id: string
+  sender_id: string
+  receiver_id: string
+  content: string
+  timestamp: string
+}
+
 export default function ChatPage() {
-  const [activeTab, setActiveTab] = useState("mentor")
+  // State variables
+  const [userRole, setUserRole] = useState<"mentor" | "mentee">("mentee")
+  const [userId, setUserId] = useState<string>("")
+  const [userName, setUserName] = useState<string>("")
+  const [mentees, setMentees] = useState<User[]>([])
+  const [mentor, setMentor] = useState<User | null>(null)
+  const [selectedUser, setSelectedUser] = useState<User | null>(null)
+  const [messages, setMessages] = useState<Message[]>([])
   const [message, setMessage] = useState("")
-  const [messages, setMessages] = useState<any[]>([])
+  const [page, setPage] = useState(1)
+  const [hasMore, setHasMore] = useState(true)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [hasMounted, setHasMounted] = useState(false)
+  const [isFetchingMore, setIsFetchingMore] = useState(false)
+  
+  // Refs
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const chatContainerRef = useRef<HTMLDivElement>(null)
+  const pollingRef = useRef<NodeJS.Timeout | null>(null)
 
-  // Mock data
-  const mentorInfo = {
-    name: "Dr. Alex Johnson",
-    role: "Senior AI Engineer",
-    avatar: "/placeholder.svg?height=40&width=40",
-    status: "online",
-  }
-
-  const aiAssistantInfo = {
-    name: "AI Assistant",
-    role: "Learning Helper",
-    avatar: "/placeholder.svg?height=40&width=40",
-  }
-
+  // Prevent hydration mismatch
   useEffect(() => {
-    // Scroll to bottom whenever messages change
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
-  }, [messages])
+    setHasMounted(true)
+  }, [])
 
+  // Fetch user profile and initialize chat
   useEffect(() => {
-    // Load initial messages
-    if (activeTab === "mentor") {
-      setMessages([
-        {
-          id: 1,
-          sender: "mentor",
-          content: "Hi Sarah! How's your progress with the React module going?",
-          timestamp: "10:30 AM",
-        },
-        {
-          id: 2,
-          sender: "user",
-          content:
-            "I'm making good progress! I've completed the components section, but I'm having some trouble understanding hooks.",
-          timestamp: "10:32 AM",
-        },
-        {
-          id: 3,
-          sender: "mentor",
-          content: "Hooks can be tricky at first. What specific part is giving you trouble?",
-          timestamp: "10:35 AM",
-        },
-      ])
-    } else {
-      setMessages([
-        {
-          id: 1,
-          sender: "ai",
-          content: "Hello! I'm your AI learning assistant. How can I help you with your React learning journey today?",
-          timestamp: "11:15 AM",
-        },
-      ])
-    }
-  }, [activeTab])
-
-  const handleSendMessage = () => {
-    if (message.trim() === "") return
-
-    // Add user message
-    const newMessage = {
-      id: messages.length + 1,
-      sender: "user",
-      content: message,
-      timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-    }
-
-    setMessages([...messages, newMessage])
-    setMessage("")
-
-    // Simulate response
-    setTimeout(() => {
-      const responseMessage = {
-        id: messages.length + 2,
-        sender: activeTab === "mentor" ? "mentor" : "ai",
-        content:
-          activeTab === "mentor"
-            ? "I see. Let me explain hooks in a simpler way. React hooks are functions that let you use state and other React features without writing a class component. The most common ones are useState and useEffect."
-            : "React hooks are a powerful feature introduced in React 16.8. They allow you to use state and other React features without writing class components. Would you like me to provide some examples of how to use useState and useEffect?",
-        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+    const fetchProfile = async () => {
+      try {
+        setLoading(true)
+        setError(null)
+        
+        const response = await fetch("http://localhost:5000/api/auth/profile", {
+          credentials: "include",
+        })
+        
+        if (!response.ok) {
+          throw new Error("Failed to fetch profile")
+        }
+        
+        const data = await response.json()
+        const user = data.user
+        
+        setUserId(user.id)
+        setUserName(user.name)
+        setUserRole(user.role)
+        
+        if (user.role === "mentor" && user.mentees && user.mentees.length > 0) {
+          // Fetch mentees with their names using the API
+          try {
+            const menteesResponse = await fetch("http://localhost:5000/api/users/mentees", {
+              credentials: "include",
+            })
+            
+            if (menteesResponse.ok) {
+              const menteesData = await menteesResponse.json()
+              setMentees(menteesData)
+              
+              if (menteesData.length > 0) {
+                setSelectedUser(menteesData[0])
+              }
+            } else {
+              // Fallback to using IDs from profile if API fails
+              const menteeUsers = user.mentees.map((menteeId: string) => ({
+                id: menteeId,
+                name: `Mentee ${menteeId.slice(-4)}`,
+                username: `mentee_${menteeId.slice(-4)}`,
+                role: "mentee"
+              }))
+              setMentees(menteeUsers)
+              setSelectedUser(menteeUsers[0])
+            }
+          } catch (error) {
+            console.error("Error fetching mentees:", error)
+            // Fallback to using IDs from profile
+            const menteeUsers = user.mentees.map((menteeId: string) => ({
+              id: menteeId,
+              name: `Mentee ${menteeId.slice(-4)}`,
+              username: `mentee_${menteeId.slice(-4)}`,
+              role: "mentee"
+            }))
+            setMentees(menteeUsers)
+            setSelectedUser(menteeUsers[0])
+          }
+          
+        } else if (user.role === "mentee" && user.mentors && user.mentors.length > 0) {
+          // Fetch mentor with their name using the API
+          try {
+            const mentorResponse = await fetch("http://localhost:5000/api/users/mymentor", {
+              credentials: "include",
+            })
+            
+            if (mentorResponse.ok) {
+              const mentorData = await mentorResponse.json()
+              setMentor(mentorData)
+              setSelectedUser(mentorData)
+            } else {
+              // Fallback to using ID from profile if API fails
+              const mentorId = user.mentors[0]
+              const mentorUser = {
+                id: mentorId,
+                name: `Mentor ${mentorId.slice(-4)}`,
+                username: `mentor_${mentorId.slice(-4)}`,
+                role: "mentor"
+              }
+              setMentor(mentorUser)
+              setSelectedUser(mentorUser)
+            }
+          } catch (error) {
+            console.error("Error fetching mentor:", error)
+            // Fallback to using ID from profile
+            const mentorId = user.mentors[0]
+            const mentorUser = {
+              id: mentorId,
+              name: `Mentor ${mentorId.slice(-4)}`,
+              username: `mentor_${mentorId.slice(-4)}`,
+              role: "mentor"
+            }
+            setMentor(mentorUser)
+            setSelectedUser(mentorUser)
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching profile:", error)
+        setError("Failed to load profile")
+      } finally {
+        setLoading(false)
       }
+    }
+    
+    if (hasMounted) {
+      fetchProfile()
+    }
+  }, [hasMounted])
 
-      setMessages((prev) => [...prev, responseMessage])
-    }, 1000)
+  // Fetch messages function
+  const fetchMessages = useCallback(async (otherId: string, pageNum: number, reset: boolean = false) => {
+    if (!otherId) return
+    
+    try {
+      const response = await fetch(`http://localhost:5000/api/chat/get/${otherId}/${pageNum}`, {
+        credentials: "include",
+      })
+      
+      if (!response.ok) {
+        throw new Error("Failed to fetch messages")
+      }
+      
+      const data = await response.json()
+      setHasMore(!data.isLastPage)
+      
+      if (reset) {
+        setMessages(data.messages || [])
+        setPage(1)
+      } else {
+        setMessages(prev => [...(data.messages || []), ...prev])
+        setPage(pageNum)
+      }
+    } catch (error) {
+      console.error("Error fetching messages:", error)
+      setError("Failed to load messages")
+    } finally {
+      setIsFetchingMore(false)
+    }
+  }, [])
+
+  // Load messages when selectedUser changes
+  useEffect(() => {
+    if (!selectedUser?.id || !hasMounted) return
+    
+    setMessages([])
+    setPage(1)
+    setHasMore(true)
+    fetchMessages(selectedUser.id, 1, true)
+    
+    // Scroll to bottom after a short delay
+    setTimeout(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: "auto" })
+    }, 100)
+  }, [selectedUser, fetchMessages, hasMounted])
+
+  // Polling for new messages every 15 seconds
+  useEffect(() => {
+    if (!selectedUser?.id || !hasMounted) return
+    
+    // Clear existing polling
+    if (pollingRef.current) {
+      clearInterval(pollingRef.current)
+    }
+    
+    pollingRef.current = setInterval(() => {
+      fetchMessages(selectedUser.id, 1, true)
+    }, 15000)
+    
+    return () => {
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current)
+      }
+    }
+  }, [selectedUser, fetchMessages, hasMounted])
+
+  // Infinite scroll for loading older messages
+  useEffect(() => {
+    if (!hasMounted) return
+    
+    const handleScroll = () => {
+      if (
+        !chatContainerRef.current ||
+        !selectedUser?.id ||
+        !hasMore ||
+        isFetchingMore
+      ) return
+      
+      if (chatContainerRef.current.scrollTop === 0) {
+        setIsFetchingMore(true)
+        fetchMessages(selectedUser.id, page + 1, false)
+      }
+    }
+    
+    const container = chatContainerRef.current
+    if (container) {
+      container.addEventListener("scroll", handleScroll)
+      return () => container.removeEventListener("scroll", handleScroll)
+    }
+  }, [selectedUser, page, hasMore, isFetchingMore, fetchMessages, hasMounted])
+
+  // Send message function
+  const handleSendMessage = async () => {
+    if (!message.trim() || !selectedUser?.id) return
+    
+    const messageContent = message.trim()
+    setMessage("")
+    
+    // Optimistic update
+    const tempMessage: Message = {
+      _id: `temp-${Date.now()}`,
+      sender_id: userId,
+      receiver_id: selectedUser.id,
+      content: messageContent,
+      timestamp: new Date().toISOString()
+    }
+    
+    setMessages(prev => [...prev, tempMessage])
+    
+    // Scroll to bottom
+    setTimeout(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
+    }, 100)
+    
+    try {
+      const response = await fetch("http://localhost:5000/api/chat/send", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify({
+          receiver_id: selectedUser.id,
+          content: messageContent,
+        }),
+      })
+      
+      if (!response.ok) {
+        throw new Error("Failed to send message")
+      }
+      
+      // Refresh messages to get the actual message with correct timestamp
+      await fetchMessages(selectedUser.id, 1, true)
+      
+      setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
+      }, 100)
+      
+    } catch (error) {
+      console.error("Error sending message:", error)
+      setError("Failed to send message")
+      // Remove the temporary message on error
+      setMessages(prev => prev.filter(msg => msg._id !== tempMessage._id))
+      setMessage(messageContent) // Restore the message
+    }
   }
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -110,15 +314,28 @@ export default function ChatPage() {
     }
   }
 
+  // Don't render anything until mounted to prevent hydration mismatch
+  if (!hasMounted) {
+    return null
+  }
+
   return (
-    <DashboardLayout userRole="mentee">
+    <DashboardLayout userRole={userRole}>
       <div className="space-y-6">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Chat</h1>
           <p className="text-gray-500 dark:text-gray-400 mt-2">
-            Connect with your mentor or get help from our AI assistant
+            {userRole === "mentor" 
+              ? "Select a mentee to chat with" 
+              : "Chat with your mentor"}
           </p>
         </div>
+
+        {error && (
+          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+            {error}
+          </div>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           {/* Sidebar */}
@@ -127,112 +344,53 @@ export default function ChatPage() {
               <CardTitle>Conversations</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value="mentor">Mentor</TabsTrigger>
-                  <TabsTrigger value="ai">AI Assistant</TabsTrigger>
-                </TabsList>
-              </Tabs>
-
-              {activeTab === "mentor" && (
-                <div className="space-y-2">
-                  <div className="flex items-center space-x-3 p-2 rounded-lg bg-purple-100 dark:bg-purple-900">
-                    <Avatar>
-                      <AvatarImage src={mentorInfo.avatar || "/placeholder.svg"} alt={mentorInfo.name} />
-                      <AvatarFallback>{mentorInfo.name.charAt(0)}</AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <p className="font-medium">{mentorInfo.name}</p>
-                      <div className="flex items-center">
-                        <span className="h-2 w-2 rounded-full bg-green-500 mr-1"></span>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">{mentorInfo.status}</p>
+              {userRole === "mentor" ? (
+                mentees.length > 0 ? (
+                  mentees.map((mentee) => (
+                    <div
+                      key={mentee.id}
+                      className={`flex items-center space-x-3 p-2 rounded-lg cursor-pointer transition-colors ${
+                        selectedUser?.id === mentee.id
+                          ? "bg-purple-100 dark:bg-purple-900"
+                          : "hover:bg-gray-100 dark:hover:bg-gray-800"
+                      }`}
+                      onClick={() => setSelectedUser(mentee)}
+                    >
+                      <Avatar>
+                        <AvatarFallback>
+                          {mentee.name.charAt(0).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <p className="font-medium">{mentee.name}</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                          @{mentee.username}
+                        </p>
                       </div>
                     </div>
+                  ))
+                ) : (
+                  <div className="text-center text-gray-500 py-4">
+                    No mentees found
                   </div>
-
-                  <div className="p-4 border rounded-lg">
-                    <h3 className="text-sm font-medium mb-2">Schedule a Meeting</h3>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
-                      Need more in-depth help? Schedule a video call.
+                )
+              ) : mentor ? (
+                <div className="flex items-center space-x-3 p-2 rounded-lg bg-purple-100 dark:bg-purple-900">
+                  <Avatar>
+                    <AvatarFallback>
+                      {mentor.name.charAt(0).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <p className="font-medium">{mentor.name}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      @{mentor.username}
                     </p>
-                    <Button variant="outline" size="sm" className="w-full">
-                      <Calendar className="h-4 w-4 mr-2" /> Schedule
-                    </Button>
-                  </div>
-
-                  <div className="p-4 border rounded-lg">
-                    <h3 className="text-sm font-medium mb-2">Shared Resources</h3>
-                    <div className="space-y-2">
-                      <div className="flex items-center text-xs">
-                        <FileText className="h-3 w-3 mr-1 text-gray-500 dark:text-gray-400" />
-                        <span className="text-purple-600 dark:text-purple-400 hover:underline cursor-pointer">
-                          React_Hooks_Guide.pdf
-                        </span>
-                      </div>
-                      <div className="flex items-center text-xs">
-                        <FileText className="h-3 w-3 mr-1 text-gray-500 dark:text-gray-400" />
-                        <span className="text-purple-600 dark:text-purple-400 hover:underline cursor-pointer">
-                          Component_Lifecycle.pdf
-                        </span>
-                      </div>
-                    </div>
                   </div>
                 </div>
-              )}
-
-              {activeTab === "ai" && (
-                <div className="space-y-2">
-                  <div className="flex items-center space-x-3 p-2 rounded-lg bg-purple-100 dark:bg-purple-900">
-                    <Avatar>
-                      <AvatarImage src={aiAssistantInfo.avatar || "/placeholder.svg"} alt={aiAssistantInfo.name} />
-                      <AvatarFallback>AI</AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <p className="font-medium">{aiAssistantInfo.name}</p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">{aiAssistantInfo.role}</p>
-                    </div>
-                  </div>
-
-                  <div className="p-4 border rounded-lg">
-                    <h3 className="text-sm font-medium mb-2">AI Capabilities</h3>
-                    <ul className="text-xs text-gray-500 dark:text-gray-400 space-y-1">
-                      <li>• Answer questions about your roadmap</li>
-                      <li>• Explain technical concepts</li>
-                      <li>• Provide code examples</li>
-                      <li>• Suggest learning resources</li>
-                      <li>• Help debug code issues</li>
-                    </ul>
-                  </div>
-
-                  <div className="p-4 border rounded-lg">
-                    <h3 className="text-sm font-medium mb-2">Quick Prompts</h3>
-                    <div className="space-y-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="w-full text-xs justify-start"
-                        onClick={() => setMessage("Explain React hooks")}
-                      >
-                        Explain React hooks
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="w-full text-xs justify-start"
-                        onClick={() => setMessage("Help me debug this code")}
-                      >
-                        Help me debug this code
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="w-full text-xs justify-start"
-                        onClick={() => setMessage("Suggest resources for state management")}
-                      >
-                        Suggest resources for state management
-                      </Button>
-                    </div>
-                  </div>
+              ) : (
+                <div className="text-center text-gray-500 py-4">
+                  No mentor assigned
                 </div>
               )}
             </CardContent>
@@ -241,91 +399,99 @@ export default function ChatPage() {
           {/* Chat Area */}
           <Card className="lg:col-span-3 flex flex-col h-[calc(100vh-13rem)]">
             <CardHeader className="border-b">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <Avatar>
-                    <AvatarImage
-                      src={activeTab === "mentor" ? mentorInfo.avatar : aiAssistantInfo.avatar}
-                      alt={activeTab === "mentor" ? mentorInfo.name : aiAssistantInfo.name}
-                    />
-                    <AvatarFallback>{activeTab === "mentor" ? mentorInfo.name.charAt(0) : "AI"}</AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <CardTitle>{activeTab === "mentor" ? mentorInfo.name : aiAssistantInfo.name}</CardTitle>
-                    <CardDescription>{activeTab === "mentor" ? mentorInfo.role : aiAssistantInfo.role}</CardDescription>
-                  </div>
+              <div className="flex items-center space-x-3">
+                <Avatar>
+                  <AvatarFallback>
+                    {selectedUser?.name?.charAt(0).toUpperCase() || "?"}
+                  </AvatarFallback>
+                </Avatar>
+                <div>
+                  <CardTitle>{selectedUser?.name || "Select a conversation"}</CardTitle>
+                  <CardDescription>
+                    {selectedUser ? `@${selectedUser.username}` : ""}
+                  </CardDescription>
                 </div>
-
-                {activeTab === "ai" && (
-                  <Badge className="bg-purple-600">
-                    <Sparkles className="h-3 w-3 mr-1" /> AI Powered
-                  </Badge>
-                )}
               </div>
             </CardHeader>
 
-            <CardContent className="flex-1 overflow-y-auto p-4 space-y-4">
-              {messages.map((msg) => (
-                <div key={msg.id} className={`flex ${msg.sender === "user" ? "justify-end" : "justify-start"}`}>
-                  {msg.sender !== "user" && (
-                    <Avatar className="h-8 w-8 mr-2 mt-1">
-                      <AvatarImage
-                        src={msg.sender === "mentor" ? mentorInfo.avatar : aiAssistantInfo.avatar}
-                        alt={msg.sender === "mentor" ? mentorInfo.name : aiAssistantInfo.name}
-                      />
-                      <AvatarFallback>{msg.sender === "mentor" ? mentorInfo.name.charAt(0) : "AI"}</AvatarFallback>
-                    </Avatar>
-                  )}
-
-                  <div className={`max-w-[70%] ${msg.sender === "user" ? "order-1" : "order-2"}`}>
-                    <div
-                      className={`p-3 rounded-lg ${
-                        msg.sender === "user"
-                          ? "bg-purple-600 text-white"
-                          : msg.sender === "ai"
-                            ? "bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100"
-                            : "bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                      }`}
-                    >
-                      <p className="text-sm">{msg.content}</p>
-                    </div>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{msg.timestamp}</p>
+            <CardContent 
+              className="flex-1 overflow-y-auto p-4 space-y-4" 
+              ref={chatContainerRef}
+            >
+              {!selectedUser ? (
+                <div className="flex items-center justify-center h-full">
+                  <div className="text-center text-gray-400">
+                    Select a conversation to start chatting
                   </div>
-
-                  {msg.sender === "user" && (
-                    <Avatar className="h-8 w-8 ml-2 mt-1">
-                      <AvatarFallback>S</AvatarFallback>
-                    </Avatar>
-                  )}
                 </div>
-              ))}
-              <div ref={messagesEndRef} />
+              ) : (
+                <>
+                  {isFetchingMore && (
+                    <div className="text-center text-gray-400 py-2">
+                      Loading older messages...
+                    </div>
+                  )}
+                  
+                  {messages.map((msg) => {
+                    const isMe = msg.sender_id === userId
+                    return (
+                      <div 
+                        key={msg._id} 
+                        className={`flex ${isMe ? "justify-end" : "justify-start"}`}
+                      >
+                        <div
+                          className={`max-w-[70%] p-3 rounded-2xl ${
+                            isMe
+                              ? "bg-[#9290C3] text-white rounded-br-md"
+                              : "bg-[#1B1A55] text-white rounded-bl-md"
+                          }`}
+                        >
+                          <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                          <p className="text-xs text-white/70 mt-1">
+                            {new Date(msg.timestamp).toLocaleTimeString([], {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </p>
+                        </div>
+                      </div>
+                    )
+                  })}
+                  
+                  <div ref={messagesEndRef} />
+                </>
+              )}
             </CardContent>
 
-            <CardFooter className="border-t p-4">
+            <div className="border-t p-4">
               <div className="flex items-end w-full space-x-2">
                 <Button variant="outline" size="icon" className="shrink-0">
                   <PaperclipIcon className="h-4 w-4" />
                 </Button>
 
                 <Textarea
-                  placeholder={`Message ${activeTab === "mentor" ? mentorInfo.name : aiAssistantInfo.name}...`}
+                  placeholder={
+                    selectedUser 
+                      ? `Message ${selectedUser.name}...` 
+                      : "Select a user to start chatting"
+                  }
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
                   onKeyDown={handleKeyPress}
                   className="min-h-10 flex-1 resize-none"
                   rows={1}
+                  disabled={!selectedUser}
                 />
 
                 <Button
-                  className="bg-purple-600 hover:bg-purple-700 shrink-0"
+                  className="bg-[#9290C3] hover:bg-[#7B68EE] shrink-0"
                   onClick={handleSendMessage}
-                  disabled={message.trim() === ""}
+                  disabled={message.trim() === "" || !selectedUser}
                 >
                   <Send className="h-4 w-4" />
                 </Button>
               </div>
-            </CardFooter>
+            </div>
           </Card>
         </div>
       </div>
