@@ -80,6 +80,8 @@ def create_roadmap(topic) -> dict:
         enriched_subtopics = []
         for sub in mod["subtopics"]:
             resources = search_resources(f"{sub} {topic} site:youtube.com OR site:coursera.org OR free learning")
+            if resources and resources[0]["title"] == "Search failed":
+                continue
             enriched_subtopics.append({
                 "title": sub,
                 "resources": resources
