@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Textarea } from "@/components/ui/textarea"
-import { PaperclipIcon, Send } from "lucide-react"
+import { PaperclipIcon, Send, Loader2, CheckCircle, Sparkles } from "lucide-react"
 import DashboardLayout from "@/components/dashboard-layout"
 
 interface User {
@@ -39,6 +39,8 @@ export default function ChatPage() {
   const [error, setError] = useState<string | null>(null)
   const [hasMounted, setHasMounted] = useState(false)
   const [isFetchingMore, setIsFetchingMore] = useState(false)
+  const [isGeneratingRoadmap, setIsGeneratingRoadmap] = useState(false)
+  const [roadmapGenerated, setRoadmapGenerated] = useState(false)
   
   // Refs
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -251,11 +253,15 @@ export default function ChatPage() {
     }
   }, [selectedUser, page, hasMore, isFetchingMore, fetchMessages, hasMounted])
 
-  // Send message function
+  // Send message function with AI Assistant detection
   const handleSendMessage = async () => {
     if (!message.trim() || !selectedUser?.id) return
     
     const messageContent = message.trim()
+    
+    // Check if this is an AI Assistant request from a mentor
+    const isAIRequest = messageContent.includes("@AI Assistant") && userRole === "mentor"
+    
     setMessage("")
     
     // Optimistic update
@@ -298,12 +304,96 @@ export default function ChatPage() {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
       }, 100)
       
+      // If this is an AI Assistant request, trigger roadmap generation
+      if (isAIRequest) {
+        await handleAIRoadmapGeneration()
+      }
+      
     } catch (error) {
       console.error("Error sending message:", error)
       setError("Failed to send message")
       // Remove the temporary message on error
       setMessages(prev => prev.filter(msg => msg._id !== tempMessage._id))
       setMessage(messageContent) // Restore the message
+    }
+  }
+
+  // Handle AI roadmap generation
+  const handleAIRoadmapGeneration = async () => {
+    if (!selectedUser?.id || userRole !== "mentor") return
+    
+    setIsGeneratingRoadmap(true)
+    setRoadmapGenerated(false)
+    setError(null)
+    
+    try {
+      console.log("Fetching chat history for mentee:", selectedUser.id)
+      
+      // First, get the chat history
+      const historyResponse = await fetch(`http://localhost:5000/api/chat/history/${selectedUser.id}`, {
+        credentials: "include",
+      })
+      
+      if (!historyResponse.ok) {
+        const errorText = await historyResponse.text()
+        console.error("Chat history error:", errorText)
+        throw new Error(`Failed to fetch chat history: ${historyResponse.status}`)
+      }
+      
+      const chatHistory = await historyResponse.json()
+      console.log("Chat history fetched:", JSON.stringify(chatHistory, null, 2))
+      
+      // Validate the format before sending
+      if (!chatHistory.mentee_id || !Array.isArray(chatHistory.conversation)) {
+        console.error("Invalid chat history format:", chatHistory)
+        throw new Error("Invalid chat history format received")
+      }
+      
+      // Validate each conversation item
+      for (const item of chatHistory.conversation) {
+        if (!item.timestamp || !item.sender || !item.message) {
+          console.error("Invalid conversation item:", item)
+          throw new Error("Invalid conversation item format")
+        }
+      }
+      
+      console.log("Sending to AI roadmap generation with payload:", JSON.stringify(chatHistory, null, 2))
+      
+      // Then, send it to the AI roadmap generation endpoint
+      const roadmapResponse = await fetch("http://localhost:5000/api/ai/roadmap", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify(chatHistory),
+      })
+      
+      if (!roadmapResponse.ok) {
+        const errorText = await roadmapResponse.text()
+        console.error("Roadmap generation error response:", errorText)
+        try {
+          const errorData = JSON.parse(errorText)
+          throw new Error(errorData.message || errorData.error || `HTTP ${roadmapResponse.status}`)
+        } catch (parseError) {
+          throw new Error(`Failed to generate roadmap: ${roadmapResponse.status} - ${errorText}`)
+        }
+      }
+      
+      const result = await roadmapResponse.json()
+      console.log("Roadmap generation successful:", result)
+      
+      // Success
+      setRoadmapGenerated(true)
+      setTimeout(() => {
+        setIsGeneratingRoadmap(false)
+        setRoadmapGenerated(false)
+      }, 3000)
+      
+    } catch (error) {
+      console.error("Error generating roadmap:", error)
+      setError(`Failed to generate roadmap: ${error.message}`)
+      setIsGeneratingRoadmap(false)
     }
   }
 
@@ -326,7 +416,7 @@ export default function ChatPage() {
           <h1 className="text-3xl font-bold tracking-tight">Chat</h1>
           <p className="text-gray-500 dark:text-gray-400 mt-2">
             {userRole === "mentor" 
-              ? "Select a mentee to chat with" 
+              ? "Select a mentee to chat with. Use @AI Assistant to generate roadmaps!" 
               : "Chat with your mentor"}
           </p>
         </div>
@@ -334,6 +424,52 @@ export default function ChatPage() {
         {error && (
           <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
             {error}
+          </div>
+        )}
+
+        {/* AI Roadmap Generation Modal/Overlay */}
+        {isGeneratingRoadmap && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <Card className="w-full max-w-md shadow-lg">
+              <CardHeader>
+                <CardTitle className="text-2xl text-center flex items-center justify-center gap-2">
+                  <Sparkles className="h-6 w-6 text-purple-500" />
+                  AI Roadmap Generation
+                </CardTitle>
+                <CardDescription className="text-center">
+                  {roadmapGenerated 
+                    ? "Roadmap generated successfully!" 
+                    : "Creating a personalized roadmap based on your conversation..."}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {!roadmapGenerated ? (
+                  <div className="flex flex-col items-center justify-center py-8">
+                    <div className="relative flex items-center justify-center mb-4">
+                      {/* Cool animated loader */}
+                      <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-purple-500"></div>
+                      <Sparkles className="absolute h-8 w-8 text-purple-700 animate-pulse" />
+                    </div>
+                    <p className="text-lg font-medium text-purple-700 animate-pulse">
+                      Analyzing conversation...
+                    </p>
+                    <p className="text-sm text-gray-500 mt-2">
+                      This may take 3-4 minutes. Please wait.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-8">
+                    <CheckCircle className="h-16 w-16 text-green-500 mb-2 animate-bounce" />
+                    <h2 className="text-xl font-bold text-green-700 mb-2">
+                      Roadmap Generated Successfully!
+                    </h2>
+                    <p className="text-center text-gray-600">
+                      The personalized roadmap has been created based on your conversation.
+                    </p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </div>
         )}
 
@@ -353,8 +489,8 @@ export default function ChatPage() {
                         selectedUser?.id === mentee.id
                           ? "bg-purple-100 dark:bg-purple-900"
                           : "hover:bg-gray-100 dark:hover:bg-gray-800"
-                      }`}
-                      onClick={() => setSelectedUser(mentee)}
+                      } ${isGeneratingRoadmap ? "pointer-events-none opacity-50" : ""}`}
+                      onClick={() => !isGeneratingRoadmap && setSelectedUser(mentee)}
                     >
                       <Avatar>
                         <AvatarFallback>
@@ -415,7 +551,7 @@ export default function ChatPage() {
             </CardHeader>
 
             <CardContent 
-              className="flex-1 overflow-y-auto p-4 space-y-4" 
+              className={`flex-1 overflow-y-auto p-4 space-y-4 ${isGeneratingRoadmap ? "pointer-events-none opacity-50" : ""}`}
               ref={chatContainerRef}
             >
               {!selectedUser ? (
@@ -434,6 +570,8 @@ export default function ChatPage() {
                   
                   {messages.map((msg) => {
                     const isMe = msg.sender_id === userId
+                    const containsAIAssistant = msg.content.includes("@AI Assistant")
+                    
                     return (
                       <div 
                         key={msg._id} 
@@ -442,11 +580,31 @@ export default function ChatPage() {
                         <div
                           className={`max-w-[70%] p-3 rounded-2xl ${
                             isMe
-                              ? "bg-[#9290C3] text-white rounded-br-md"
+                              ? containsAIAssistant
+                                ? "bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-br-md border-2 border-purple-300"
+                                : "bg-[#9290C3] text-white rounded-br-md"
                               : "bg-[#1B1A55] text-white rounded-bl-md"
                           }`}
                         >
-                          <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                          <p className="text-sm whitespace-pre-wrap">
+                            {containsAIAssistant && isMe ? (
+                              <>
+                                {msg.content.split("@AI Assistant").map((part, index, array) => (
+                                  <span key={index}>
+                                    {part}
+                                    {index < array.length - 1 && (
+                                      <span className="inline-flex items-center gap-1 bg-white/20 px-2 py-1 rounded text-xs font-semibold">
+                                        <Sparkles className="h-3 w-3" />
+                                        AI Assistant
+                                      </span>
+                                    )}
+                                  </span>
+                                ))}
+                              </>
+                            ) : (
+                              msg.content
+                            )}
+                          </p>
                           <p className="text-xs text-white/70 mt-1">
                             {new Date(msg.timestamp).toLocaleTimeString([], {
                               hour: "2-digit",
@@ -463,9 +621,14 @@ export default function ChatPage() {
               )}
             </CardContent>
 
-            <div className="border-t p-4">
+            <div className={`border-t p-4 ${isGeneratingRoadmap ? "pointer-events-none opacity-50" : ""}`}>
               <div className="flex items-end w-full space-x-2">
-                <Button variant="outline" size="icon" className="shrink-0">
+                <Button 
+                  variant="outline" 
+                  size="icon" 
+                  className="shrink-0"
+                  disabled={isGeneratingRoadmap}
+                >
                   <PaperclipIcon className="h-4 w-4" />
                 </Button>
 
