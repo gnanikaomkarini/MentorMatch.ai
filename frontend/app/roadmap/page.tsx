@@ -10,10 +10,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Textarea } from "@/components/ui/textarea"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { CheckCircle, ChevronDown, ChevronRight, ExternalLink, MessageSquare, AlertCircle, Check, Lock } from "lucide-react"
+import { CheckCircle, ChevronDown, ChevronRight, ExternalLink, MessageSquare, AlertCircle, Check, Lock, XCircle } from "lucide-react"
 import DashboardLayout from "@/components/dashboard-layout"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+
+
 
 interface Resource {
   title: string
