@@ -6,6 +6,7 @@ from database.db import roadmaps, users, notifications
 from middleware.auth_middleware import token_required
 from services.ai_service import generate_roadmap
 from services.assessment_service import get_assessment, submit_score
+from models.roadmap import RoadmapModel
 
 roadmap_bp = Blueprint('roadmaps', __name__)
 
@@ -112,6 +113,27 @@ def get_roadmap(current_user, roadmap_id):
         return jsonify(roadmap), 200
     except:
         return jsonify({'message': 'Invalid roadmap ID'}), 400
+
+@roadmap_bp.route('/interview/add', methods=['POST'])
+@token_required
+def add_interview(current_user):
+    data = request.get_json()
+
+    roadmap_id = data.get("roadmap_id")
+    interview_num = int(data.get("interview_num"))
+    context = data.get("context")
+
+    if not roadmap_id or interview_num is None or context is None:
+        return jsonify({"message": "roadmap_id, interview_num, and context are required"}), 400
+
+    try:
+        if interview_num == 1:
+            RoadmapModel.set_interview_theme_1(roadmap_id, context)
+        else:
+            RoadmapModel.set_interview_theme_2(roadmap_id, context)
+        return jsonify({"message": "Interview theme added successfully"}), 201
+    except Exception as e:
+        return jsonify({"message": f"Failed to add interview theme: {str(e)}"}), 500
 
 @roadmap_bp.route('/<roadmap_id>', methods=['PUT'])
 @token_required

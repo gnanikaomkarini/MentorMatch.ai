@@ -70,3 +70,5 @@ Thumbs.db
 # Log files
 *.log
 logs/
+
+ai-speech.mp3

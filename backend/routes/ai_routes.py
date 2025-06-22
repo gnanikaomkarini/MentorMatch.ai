@@ -177,32 +177,32 @@ def interview():
         return jsonify({'message': f'Error during interview: {str(e)}'}), 500
 
 
-@ai_bp.route('/feedback', methods=['POST'])
-@token_required
-def submit_feedback(current_user):
-    data = request.get_json()
+# @ai_bp.route('/feedback', methods=['POST'])
+# @token_required
+# def submit_feedback(current_user):
+#     data = request.get_json()
     
-    ai_type = data.get('type')  # 'matching', 'roadmap', 'interview'
-    content_id = data.get('content_id')
-    rating = data.get('rating')
-    feedback = data.get('feedback')
+#     ai_type = data.get('type')  # 'matching', 'roadmap', 'interview'
+#     content_id = data.get('content_id')
+#     rating = data.get('rating')
+#     feedback = data.get('feedback')
     
-    if not ai_type or not content_id or rating is None:
-        return jsonify({'message': 'Type, content ID, and rating are required'}), 400
+#     if not ai_type or not content_id or rating is None:
+#         return jsonify({'message': 'Type, content ID, and rating are required'}), 400
     
-    try:
-        # Log the feedback for AI learning
-        feedback_data = {
-            'type': f'{ai_type}_feedback',
-            'user_id': str(current_user['_id']),
-            'content_id': content_id,
-            'rating': rating,
-            'feedback': feedback,
-            'timestamp': datetime.datetime.utcnow()
-        }
+#     try:
+#         # Log the feedback for AI learning
+#         feedback_data = {
+#             'type': f'{ai_type}_feedback',
+#             'user_id': str(current_user['_id']),
+#             'content_id': content_id,
+#             'rating': rating,
+#             'feedback': feedback,
+#             'timestamp': datetime.datetime.utcnow()
+#         }
         
-        ai_learning_data.insert_one(feedback_data)
+#         ai_learning_data.insert_one(feedback_data)
         
-        return jsonify({'message': 'Feedback submitted successfully'}), 200
-    except:
-        return jsonify({'message': 'Error submitting feedback'}), 500
+#         return jsonify({'message': 'Feedback submitted successfully'}), 200
+#     except:
+#         return jsonify({'message': 'Error submitting feedback'}), 500
