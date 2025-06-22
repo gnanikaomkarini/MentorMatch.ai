@@ -75,8 +75,11 @@ def update_roadmap(roadmap, conversation):
     return edit_roadmap(roadmap, conversation)
 
 def generate_interview_questions(audio_path, history_json, goal, theme):
-    user_answer = transcribe(audio_path)
-    history_json = history_json + "Last answer: " + user_answer
+    if audio_path is not None:
+        user_answer = transcribe(audio_path)
+        history_json = history_json + "Last answer: " + user_answer
+    else:
+        user_answer = None
 
     next_question = generate_next_question(theme, history_json, goal)
     tts(next_question)

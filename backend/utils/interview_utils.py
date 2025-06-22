@@ -23,7 +23,7 @@ Goal of the mentee giving the interviw is to learn: {goal}.
 """
     messages.append({"role": "system", "content": system_prompt.strip()})
 
-    if not history:
+    if '"question":' not in history:
         intro = "Hello! I'm your AI interviewer. Could you introduce yourself?"
         return intro
 
