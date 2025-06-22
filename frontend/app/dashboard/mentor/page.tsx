@@ -140,7 +140,16 @@ export default function MentorDashboard() {
                       <BarChart className="mr-2 h-4 w-4" /> View Full Roadmap
                     </Button>
                   </Link>
-                  <Link href={`/schedule?mentee=${mentee.id}`}>
+                  <Link
+                    href={{
+                      pathname: "/schedule",
+                      query: {
+                        mentees: encodeURIComponent(JSON.stringify(
+                          dashboard.mentees.map((m: any) => ({ id: m.id, name: m.name }))
+                        )),
+                      },
+                    }}
+                  >
                     <Button variant="outline" size="sm">
                       <Calendar className="mr-2 h-4 w-4" /> Schedule Meet
                     </Button>

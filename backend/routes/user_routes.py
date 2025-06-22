@@ -53,17 +53,19 @@ def get_mentors(current_user):
 @user_bp.route('/mentees', methods=['GET'])
 @token_required
 def get_mentees(current_user):
-    # Get all mentees
-    mentee_list = list(users.find({'role': 'mentee'}, {
-        'password': 0,
-        'email': 0
-    }))
-    
-    # Convert ObjectId to string
-    for mentee in mentee_list:
-        mentee['_id'] = str(mentee['_id'])
-    
-    return jsonify(mentee_list), 200
+    if current_user['role'] != 'mentor':
+        return jsonify({'message': 'Only mentors can view their mentees'}), 403
+
+    mentee_ids = current_user.get('mentees', [])
+    mentees = []
+    for mentee_id in mentee_ids:
+        mentee = users.find_one({'_id': ObjectId(mentee_id)})
+        if mentee:
+            mentees.append({
+                'id': str(mentee['_id']),
+                'name': mentee.get('name', '')
+            })
+    return jsonify(mentees), 200
 
 @user_bp.route('/mentors/<mentor_id>', methods=['GET'])
 @token_required

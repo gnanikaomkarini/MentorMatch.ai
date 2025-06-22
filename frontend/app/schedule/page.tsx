@@ -1,101 +1,270 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import { Calendar } from "@/components/ui/calendar"
-import { CalendarIcon, CheckCircle, Clock, Video } from "lucide-react"
+import { CalendarIcon, Clock, Video, Edit, Trash2, Save } from "lucide-react"
 import DashboardLayout from "@/components/dashboard-layout"
+import { useSearchParams } from "next/navigation"
 
 export default function SchedulePage() {
   const [activeTab, setActiveTab] = useState("upcoming")
-  const [date, setDate] = useState<Date | undefined>(new Date())
-
-  // Mock data
-  const upcomingMeetings = [
-    {
-      id: 1,
-      title: "Weekly Check-in",
-      mentor: "Dr. Alex Johnson",
-      date: "June 15, 2025",
-      time: "3:00 PM - 4:00 PM",
-      status: "confirmed",
-    },
-  ]
-
-  const pastMeetings = [
-    {
-      id: 1,
-      title: "Introduction & Goal Setting",
-      mentor: "Dr. Alex Johnson",
-      date: "June 1, 2025",
-      time: "3:00 PM - 4:00 PM",
-      status: "completed",
-    },
-  ]
-
-  const availableSlots = [
-    { id: 1, date: "June 17, 2025", time: "2:00 PM - 3:00 PM" },
-    { id: 2, date: "June 17, 2025", time: "4:00 PM - 5:00 PM" },
-    { id: 3, date: "June 18, 2025", time: "1:00 PM - 2:00 PM" },
-    { id: 4, date: "June 18, 2025", time: "3:00 PM - 4:00 PM" },
-    { id: 5, date: "June 19, 2025", time: "2:00 PM - 3:00 PM" },
-  ]
-
-  const [selectedSlot, setSelectedSlot] = useState<number | null>(null)
+  const [userRole, setUserRole] = useState<"mentor" | "mentee">("mentee")
+  const [userName, setUserName] = useState("")
+  const [userEmail, setUserEmail] = useState("")
+  const [mentees, setMentees] = useState<{ id: string; name: string }[]>([])
+  const [meetings, setMeetings] = useState<any[]>([])
+  const [pastMeetings, setPastMeetings] = useState<any[]>([])
+  const [currentMeetings, setCurrentMeetings] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState("")
+  const [success, setSuccess] = useState("")
+  // Scheduling form state
   const [meetingTitle, setMeetingTitle] = useState("")
   const [meetingAgenda, setMeetingAgenda] = useState("")
+  const [meetingLink, setMeetingLink] = useState("")
+  const [startTime, setStartTime] = useState("")
+  const [endTime, setEndTime] = useState("")
+  const [selectedMentee, setSelectedMentee] = useState("")
+  // For editing meetings
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editForm, setEditForm] = useState<any>({})
 
-  const handleScheduleMeeting = () => {
-    // In a real app, this would make an API call to schedule the meeting
-    console.log("Scheduling meeting:", {
-      slot: selectedSlot,
-      title: meetingTitle,
-      agenda: meetingAgenda,
-    })
+  // Fetch user info and mentees (keep this as is)
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true)
+      setError("")
+      try {
+        // Get user profile (to get role, mentees, etc.)
+        const resProfile = await fetch("http://localhost:5000/api/auth/profile", {
+          credentials: "include",
+        })
+        const dataProfile = await resProfile.json()
+        if (!resProfile.ok) throw new Error(dataProfile.message || "Failed to fetch profile")
+        setUserRole(dataProfile.user.role)
+        setUserName(dataProfile.user.name)
+        setUserEmail(dataProfile.user.email)
+        if (dataProfile.user.role === "mentor") {
+          // Fetch mentee names for scheduling
+          const menteeIds = dataProfile.user.mentees || []
+          const menteeList = []
+          for (const id of menteeIds) {
+            const res = await fetch(`http://localhost:5000/api/users/${id}`, { credentials: "include" })
+            const d = await res.json()
+            if (res.ok) menteeList.push({ id, name: d.name })
+          }
+          setMentees(menteeList)
+        }
+      } catch (err: any) {
+        setError(err.message || "Failed to load user data")
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchData()
+  }, [])
 
-    // Reset form
-    setSelectedSlot(null)
-    setMeetingTitle("")
-    setMeetingAgenda("")
+  // Fetch meetings when activeTab changes
+  useEffect(() => {
+    const fetchMeetings = async () => {
+      setLoading(true)
+      setError("")
+      try {
+        let url = ""
+        if (activeTab === "current") url = "http://localhost:5000/api/meetings/current"
+        else if (activeTab === "upcoming") url = "http://localhost:5000/api/meetings/upcoming"
+        else if (activeTab === "past") url = "http://localhost:5000/api/meetings/past"
+        else return
 
-    // Switch to upcoming tab
-    setActiveTab("upcoming")
+        const res = await fetch(url, { credentials: "include" })
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.message || "Failed to fetch meetings")
+        if (activeTab === "current") setCurrentMeetings(data)
+        else if (activeTab === "upcoming") setMeetings(data)
+        else if (activeTab === "past") setPastMeetings(data)
+      } catch (err: any) {
+        setError(err.message || "Failed to fetch meetings")
+      } finally {
+        setLoading(false)
+      }
+    }
+    // Only fetch if not on "schedule" tab
+    if (["current", "upcoming", "past"].includes(activeTab)) {
+      fetchMeetings()
+    }
+  }, [activeTab])
+
+  const searchParams = useSearchParams();
+  useEffect(() => {
+    const menteesParam = searchParams.get("mentees");
+    if (menteesParam) {
+      try {
+        const menteeList = JSON.parse(decodeURIComponent(menteesParam));
+        setMentees(menteeList);
+      } catch (e) {
+        // fallback: keep mentees empty or fetch as before
+      }
+    }
+    // ...rest of your useEffect logic (fetch user, meetings, etc)...
+  }, []);
+
+  // Schedule a new meeting (mentor only)
+  const handleScheduleMeeting = async () => {
+    setError("")
+    setSuccess("")
+    try {
+      const res = await fetch("http://localhost:5000/api/meetings/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          mentee_id: selectedMentee,
+          title: meetingTitle,
+          description: meetingAgenda,
+          meeting_link: meetingLink,
+          start_time: startTime,
+          end_time: endTime,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.message || "Failed to schedule meeting")
+      setSuccess("Meeting scheduled successfully!")
+      setMeetingTitle("")
+      setMeetingAgenda("")
+      setMeetingLink("")
+      setStartTime("")
+      setEndTime("")
+      setSelectedMentee("")
+      // Refresh meetings
+      const resUpcoming = await fetch("http://localhost:5000/api/meetings/upcoming", { credentials: "include" })
+      setMeetings(resUpcoming.ok ? await resUpcoming.json() : [])
+      setActiveTab("upcoming")
+    } catch (err: any) {
+      setError(err.message || "Failed to schedule meeting")
+    }
   }
 
+  // Edit meeting (mentor only)
+  const handleEditMeeting = (meeting: any) => {
+    setEditingId(meeting.meeting_id)
+    setEditForm({
+      title: meeting.title,
+      description: meeting.description,
+      meeting_link: meeting.meeting_link,
+      start_time: meeting.start_time.slice(0, 16), // for input type="datetime-local"
+      end_time: meeting.end_time.slice(0, 16),
+    })
+  }
+  const handleSaveEdit = async (meetingId: string) => {
+    setError("")
+    setSuccess("")
+    try {
+      const res = await fetch(`http://localhost:5000/api/meetings/${meetingId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          ...editForm,
+          start_time: new Date(editForm.start_time).toISOString(),
+          end_time: new Date(editForm.end_time).toISOString(),
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.message || "Failed to update meeting")
+      setSuccess("Meeting updated successfully!")
+      setEditingId(null)
+      // Refresh meetings
+      const resUpcoming = await fetch("http://localhost:5000/api/meetings/upcoming", { credentials: "include" })
+      setMeetings(resUpcoming.ok ? await resUpcoming.json() : [])
+    } catch (err: any) {
+      setError(err.message || "Failed to update meeting")
+    }
+  }
+
+  // Cancel meeting (mentor only)
+  const handleCancelMeeting = async (meetingId: string) => {
+    setError("")
+    setSuccess("")
+    try {
+      const res = await fetch(`http://localhost:5000/api/meetings/${meetingId}`, {
+        method: "DELETE",
+        credentials: "include",
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.message || "Failed to cancel meeting")
+      setSuccess("Meeting cancelled successfully!")
+      // Refresh meetings
+      const resUpcoming = await fetch("http://localhost:5000/api/meetings/upcoming", { credentials: "include" })
+      setMeetings(resUpcoming.ok ? await resUpcoming.json() : [])
+    } catch (err: any) {
+      setError(err.message || "Failed to cancel meeting")
+    }
+  }
+
+  useEffect(() => {
+    const fetchMentees = async () => {
+      try {
+        // Fetch user profile to check role
+        const resProfile = await fetch("http://localhost:5000/api/auth/profile", {
+          credentials: "include",
+        })
+        const dataProfile = await resProfile.json()
+        if (dataProfile.user.role === "mentor") {
+          // Fetch mentees for mentor
+          const res = await fetch("http://localhost:5000/api/users/mentees", {
+            credentials: "include",
+          })
+          if (res.ok) {
+            const menteeList = await res.json()
+            setMentees(menteeList)
+          }
+        }
+      } catch (e) {
+        // Optionally handle error
+      }
+    }
+    fetchMentees()
+  }, [])
+
   return (
-    <DashboardLayout userRole="mentee">
+    <DashboardLayout userRole={userRole} userName={userName} userEmail={userEmail}>
       <div className="space-y-6">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Schedule Meetings</h1>
-          <p className="text-gray-500 dark:text-gray-400 mt-2">Book time with your mentor for personalized guidance</p>
+          <p className="text-gray-500 dark:text-gray-400 mt-2">Book time with your mentor or mentees</p>
         </div>
+        {error && <div className="text-red-500">{error}</div>}
+        {success && <div className="text-green-600">{success}</div>}
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
           <TabsList>
+            <TabsTrigger value="current">Current</TabsTrigger>
             <TabsTrigger value="upcoming">Upcoming</TabsTrigger>
             <TabsTrigger value="past">Past</TabsTrigger>
-            <TabsTrigger value="schedule">Schedule New</TabsTrigger>
+            {userRole === "mentor" && <TabsTrigger value="schedule">Schedule New</TabsTrigger>}
           </TabsList>
 
-          <TabsContent value="upcoming" className="space-y-4">
-            {upcomingMeetings.length > 0 ? (
-              upcomingMeetings.map((meeting) => (
-                <Card key={meeting.id}>
+          {/* Current Meetings */}
+          <TabsContent value="current" className="space-y-4">
+            {currentMeetings.length > 0 ? (
+              currentMeetings.map((meeting) => (
+                <Card key={meeting.meeting_id}>
                   <CardHeader>
                     <div className="flex flex-col md:flex-row md:items-center md:justify-between">
                       <div>
                         <CardTitle>{meeting.title}</CardTitle>
-                        <CardDescription>with {meeting.mentor}</CardDescription>
+                        <CardDescription>
+                          with {meeting.with?.name} ({meeting.with?.role})
+                        </CardDescription>
                       </div>
-                      <Badge className="mt-2 md:mt-0 bg-green-600 self-start md:self-auto">
-                        {meeting.status === "confirmed" ? "Confirmed" : "Pending"}
+                      <Badge className="mt-2 md:mt-0 bg-blue-600 self-start md:self-auto">
+                        Ongoing
                       </Badge>
                     </div>
                   </CardHeader>
@@ -103,25 +272,144 @@ export default function SchedulePage() {
                     <div className="flex flex-col md:flex-row md:items-center space-y-4 md:space-y-0 md:space-x-6">
                       <div className="flex items-center">
                         <CalendarIcon className="h-5 w-5 mr-2 text-gray-500 dark:text-gray-400" />
-                        <span>{meeting.date}</span>
+                        <span>{new Date(meeting.start_time).toLocaleDateString()}</span>
                       </div>
                       <div className="flex items-center">
                         <Clock className="h-5 w-5 mr-2 text-gray-500 dark:text-gray-400" />
-                        <span>{meeting.time}</span>
+                        <span>
+                          {new Date(meeting.start_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} -{" "}
+                          {new Date(meeting.end_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                        </span>
+                      </div>
+                      <div className="flex items-center">
+                        <Video className="h-5 w-5 mr-2 text-gray-500 dark:text-gray-400" />
+                        <a href={meeting.meeting_link} target="_blank" rel="noopener noreferrer" className="text-purple-600 underline">
+                          Join Link
+                        </a>
                       </div>
                     </div>
+                    <div className="mt-2 text-gray-700 dark:text-gray-300">{meeting.description}</div>
                   </CardContent>
-                  <CardFooter className="flex flex-col md:flex-row space-y-2 md:space-y-0 md:justify-between">
-                    <div className="text-sm text-gray-500 dark:text-gray-400">
-                      Meeting link will be available 15 minutes before the scheduled time
+                </Card>
+              ))
+            ) : (
+              <Card>
+                <CardHeader>
+                  <CardTitle>No Ongoing Meetings</CardTitle>
+                  <CardDescription>You don't have any meetings happening right now</CardDescription>
+                </CardHeader>
+              </Card>
+            )}
+          </TabsContent>
+
+          {/* Upcoming Meetings */}
+          <TabsContent value="upcoming" className="space-y-4">
+            {meetings.length > 0 ? (
+              meetings.map((meeting) => (
+                <Card key={meeting.meeting_id}>
+                  <CardHeader>
+                    <div className="flex flex-col md:flex-row md:items-center md:justify-between">
+                      <div>
+                        <CardTitle>{meeting.title}</CardTitle>
+                        <CardDescription>
+                          with {meeting.with?.name} ({meeting.with?.role})
+                        </CardDescription>
+                      </div>
+                      <Badge className="mt-2 md:mt-0 bg-green-600 self-start md:self-auto">
+                        {meeting.status === "scheduled" ? "Confirmed" : meeting.status}
+                      </Badge>
                     </div>
-                    <div className="flex space-x-2">
-                      <Button variant="outline">Reschedule</Button>
-                      <Button className="bg-purple-600 hover:bg-purple-700">
-                        <Video className="mr-2 h-4 w-4" /> Join Meeting
-                      </Button>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex flex-col md:flex-row md:items-center space-y-4 md:space-y-0 md:space-x-6">
+                      <div className="flex items-center">
+                        <CalendarIcon className="h-5 w-5 mr-2 text-gray-500 dark:text-gray-400" />
+                        <span>{new Date(meeting.start_time).toLocaleDateString()}</span>
+                      </div>
+                      <div className="flex items-center">
+                        <Clock className="h-5 w-5 mr-2 text-gray-500 dark:text-gray-400" />
+                        <span>
+                          {new Date(meeting.start_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} -{" "}
+                          {new Date(meeting.end_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                        </span>
+                      </div>
+                      <div className="flex items-center">
+                        <Video className="h-5 w-5 mr-2 text-gray-500 dark:text-gray-400" />
+                        <a href={meeting.meeting_link} target="_blank" rel="noopener noreferrer" className="text-purple-600 underline">
+                          Join Link
+                        </a>
+                      </div>
                     </div>
+                    <div className="mt-2 text-gray-700 dark:text-gray-300">{meeting.description}</div>
+                  </CardContent>
+                  <CardFooter className="flex flex-col md:flex-row md:justify-between space-y-2 md:space-y-0">
+                    {userRole === "mentor" && (
+                      <div className="flex space-x-2">
+                        {editingId === meeting.meeting_id ? (
+                          <>
+                            <Button size="sm" onClick={() => handleSaveEdit(meeting.meeting_id)}>
+                              <Save className="h-4 w-4 mr-1" /> Save
+                            </Button>
+                            <Button size="sm" variant="outline" onClick={() => setEditingId(null)}>
+                              Cancel
+                            </Button>
+                          </>
+                        ) : (
+                          <>
+                            <Button size="sm" variant="outline" onClick={() => handleEditMeeting(meeting)}>
+                              <Edit className="h-4 w-4 mr-1" /> Edit
+                            </Button>
+                            <Button size="sm" variant="destructive" onClick={() => handleCancelMeeting(meeting.meeting_id)}>
+                              <Trash2 className="h-4 w-4 mr-1" /> Cancel
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                    )}
                   </CardFooter>
+                  {editingId === meeting.meeting_id && (
+                    <CardContent>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <Label>Title</Label>
+                          <Input
+                            value={editForm.title}
+                            onChange={(e) => setEditForm((f: any) => ({ ...f, title: e.target.value }))}
+                          />
+                        </div>
+                        <div>
+                          <Label>Meeting Link</Label>
+                          <Input
+                            value={editForm.meeting_link}
+                            onChange={(e) => setEditForm((f: any) => ({ ...f, meeting_link: e.target.value }))}
+                          />
+                        </div>
+                        <div>
+                          <Label>Start Time</Label>
+                          <Input
+                            type="datetime-local"
+                            value={editForm.start_time}
+                            onChange={(e) => setEditForm((f: any) => ({ ...f, start_time: e.target.value }))}
+                          />
+                        </div>
+                        <div>
+                          <Label>End Time</Label>
+                          <Input
+                            type="datetime-local"
+                            value={editForm.end_time}
+                            onChange={(e) => setEditForm((f: any) => ({ ...f, end_time: e.target.value }))}
+                          />
+                        </div>
+                        <div className="col-span-2">
+                          <Label>Description</Label>
+                          <Textarea
+                            value={editForm.description}
+                            onChange={(e) => setEditForm((f: any) => ({ ...f, description: e.target.value }))}
+                          />
+                        </div>
+                      </div>
+                    </CardContent>
+                  )}
                 </Card>
               ))
             ) : (
@@ -131,28 +419,31 @@ export default function SchedulePage() {
                   <CardDescription>You don't have any scheduled meetings</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-center text-gray-500 dark:text-gray-400 py-8">
-                    Schedule a meeting with your mentor to get personalized guidance
-                  </p>
+                  <p className="text-center text-gray-500 dark:text-gray-400 py-8">Schedule a meeting to get started!</p>
                 </CardContent>
                 <CardFooter>
-                  <Button className="w-full bg-purple-600 hover:bg-purple-700" onClick={() => setActiveTab("schedule")}>
-                    Schedule Meeting
-                  </Button>
+                  {userRole === "mentor" && (
+                    <Button className="w-full bg-purple-600 hover:bg-purple-700" onClick={() => setActiveTab("schedule")}>
+                      Schedule Meeting
+                    </Button>
+                  )}
                 </CardFooter>
               </Card>
             )}
           </TabsContent>
 
+          {/* Past Meetings */}
           <TabsContent value="past" className="space-y-4">
             {pastMeetings.length > 0 ? (
               pastMeetings.map((meeting) => (
-                <Card key={meeting.id}>
+                <Card key={meeting.meeting_id}>
                   <CardHeader>
                     <div className="flex flex-col md:flex-row md:items-center md:justify-between">
                       <div>
                         <CardTitle>{meeting.title}</CardTitle>
-                        <CardDescription>with {meeting.mentor}</CardDescription>
+                        <CardDescription>
+                          with {meeting.with?.name} ({meeting.with?.role})
+                        </CardDescription>
                       </div>
                       <Badge variant="outline" className="mt-2 md:mt-0 self-start md:self-auto">
                         {meeting.status}
@@ -163,20 +454,24 @@ export default function SchedulePage() {
                     <div className="flex flex-col md:flex-row md:items-center space-y-4 md:space-y-0 md:space-x-6">
                       <div className="flex items-center">
                         <CalendarIcon className="h-5 w-5 mr-2 text-gray-500 dark:text-gray-400" />
-                        <span>{meeting.date}</span>
+                        <span>{new Date(meeting.start_time).toLocaleDateString()}</span>
                       </div>
                       <div className="flex items-center">
                         <Clock className="h-5 w-5 mr-2 text-gray-500 dark:text-gray-400" />
-                        <span>{meeting.time}</span>
+                        <span>
+                          {new Date(meeting.start_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} -{" "}
+                          {new Date(meeting.end_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                        </span>
+                      </div>
+                      <div className="flex items-center">
+                        <Video className="h-5 w-5 mr-2 text-gray-500 dark:text-gray-400" />
+                        <a href={meeting.meeting_link} target="_blank" rel="noopener noreferrer" className="text-purple-600 underline">
+                          Join Link
+                        </a>
                       </div>
                     </div>
+                    <div className="mt-2 text-gray-700 dark:text-gray-300">{meeting.description}</div>
                   </CardContent>
-                  <CardFooter className="flex justify-end space-x-2">
-                    <Button variant="outline">View Notes</Button>
-                    <Button variant="outline">
-                      <Video className="mr-2 h-4 w-4" /> Recording
-                    </Button>
-                  </CardFooter>
                 </Card>
               ))
             ) : (
@@ -186,117 +481,105 @@ export default function SchedulePage() {
                   <CardDescription>You haven't had any meetings yet</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-center text-gray-500 dark:text-gray-400 py-8">
-                    Once you've had meetings with your mentor, they'll appear here
-                  </p>
+                  <p className="text-center text-gray-500 dark:text-gray-400 py-8">Once you've had meetings, they'll appear here</p>
                 </CardContent>
               </Card>
             )}
           </TabsContent>
 
-          <TabsContent value="schedule" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Schedule a New Meeting</CardTitle>
-                <CardDescription>Book time with your mentor</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="flex flex-col md:flex-row space-y-4 md:space-y-0 md:space-x-4">
-                  <div className="md:w-1/2 space-y-4">
-                    <div>
-                      <Label htmlFor="meeting-title">Meeting Title</Label>
-                      <Input
-                        id="meeting-title"
-                        placeholder="e.g. Weekly Check-in"
-                        value={meetingTitle}
-                        onChange={(e) => setMeetingTitle(e.target.value)}
-                      />
-                    </div>
-
-                    <div>
-                      <Label htmlFor="meeting-agenda">Agenda (Optional)</Label>
-                      <Textarea
-                        id="meeting-agenda"
-                        placeholder="What would you like to discuss?"
-                        value={meetingAgenda}
-                        onChange={(e) => setMeetingAgenda(e.target.value)}
-                        rows={4}
-                      />
-                    </div>
-
-                    <div>
-                      <Label>Meeting Type</Label>
-                      <Select defaultValue="video">
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select meeting type" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="video">Video Call</SelectItem>
-                          <SelectItem value="audio">Audio Call</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-
-                  <div className="md:w-1/2">
-                    <Label className="block mb-2">Select Date</Label>
-                    <Calendar
-                      mode="single"
-                      selected={date}
-                      onSelect={setDate}
-                      className="border rounded-md p-2"
-                      disabled={(date) => {
-                        // Disable past dates and weekends
-                        const now = new Date()
-                        now.setHours(0, 0, 0, 0)
-                        const day = date.getDay()
-                        return date < now || day === 0 || day === 6
-                      }}
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <Label className="block mb-2">Available Time Slots</Label>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-                    {availableSlots.map((slot) => (
-                      <div
-                        key={slot.id}
-                        className={`border rounded-md p-3 cursor-pointer ${
-                          selectedSlot === slot.id
-                            ? "border-purple-600 bg-purple-50 dark:bg-purple-900/20"
-                            : "hover:border-gray-400 dark:hover:border-gray-600"
-                        }`}
-                        onClick={() => setSelectedSlot(slot.id)}
-                      >
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="text-sm font-medium">{slot.time}</p>
-                            <p className="text-xs text-gray-500 dark:text-gray-400">{slot.date}</p>
-                          </div>
-                          {selectedSlot === slot.id && (
-                            <CheckCircle className="h-4 w-4 text-purple-600 dark:text-purple-400" />
-                          )}
-                        </div>
+          {/* Schedule New Meeting (Mentor Only) */}
+          {userRole === "mentor" && (
+            <TabsContent value="schedule" className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Schedule a New Meeting</CardTitle>
+                  <CardDescription>Book time with your mentee</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="flex flex-col md:flex-row space-y-4 md:space-y-0 md:space-x-4">
+                    <div className="md:w-1/2 space-y-4">
+                      <div>
+                        <Label htmlFor="mentee">Select Mentee</Label>
+                        <select
+                          id="mentee"
+                          className="w-full border rounded-md p-2"
+                          value={selectedMentee}
+                          onChange={(e) => setSelectedMentee(e.target.value)}
+                        >
+                          <option value="">Select a mentee</option>
+                          {mentees.map((mentee) => (
+                            <option key={mentee.id} value={mentee.id}>
+                              {mentee.name}
+                            </option>
+                          ))}
+                        </select>
                       </div>
-                    ))}
+                      <div>
+                        <Label htmlFor="meeting-title">Meeting Title</Label>
+                        <Input
+                          id="meeting-title"
+                          placeholder="e.g. Weekly Check-in"
+                          value={meetingTitle}
+                          onChange={(e) => setMeetingTitle(e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="meeting-link">Meeting Link</Label>
+                        <Input
+                          id="meeting-link"
+                          placeholder="e.g. https://meet.google.com/..."
+                          value={meetingLink}
+                          onChange={(e) => setMeetingLink(e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="meeting-agenda">Agenda (Optional)</Label>
+                        <Textarea
+                          id="meeting-agenda"
+                          placeholder="What would you like to discuss?"
+                          value={meetingAgenda}
+                          onChange={(e) => setMeetingAgenda(e.target.value)}
+                          rows={4}
+                        />
+                      </div>
+                    </div>
+                    <div className="md:w-1/2 space-y-4">
+                      <div>
+                        <Label htmlFor="start-time">Start Time</Label>
+                        <Input
+                          id="start-time"
+                          type="datetime-local"
+                          value={startTime}
+                          onChange={(e) => setStartTime(e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="end-time">End Time</Label>
+                        <Input
+                          id="end-time"
+                          type="datetime-local"
+                          value={endTime}
+                          onChange={(e) => setEndTime(e.target.value)}
+                        />
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </CardContent>
-              <CardFooter className="flex justify-between">
-                <Button variant="outline" onClick={() => setActiveTab("upcoming")}>
-                  Cancel
-                </Button>
-                <Button
-                  className="bg-purple-600 hover:bg-purple-700"
-                  disabled={!selectedSlot || !meetingTitle}
-                  onClick={handleScheduleMeeting}
-                >
-                  Schedule Meeting
-                </Button>
-              </CardFooter>
-            </Card>
-          </TabsContent>
+                </CardContent>
+                <CardFooter className="flex justify-between">
+                  <Button variant="outline" onClick={() => setActiveTab("upcoming")}>
+                    Cancel
+                  </Button>
+                  <Button
+                    className="bg-purple-600 hover:bg-purple-700"
+                    disabled={!selectedMentee || !meetingTitle || !meetingLink || !startTime || !endTime}
+                    onClick={handleScheduleMeeting}
+                  >
+                    Schedule Meeting
+                  </Button>
+                </CardFooter>
+              </Card>
+            </TabsContent>
+          )}
         </Tabs>
       </div>
     </DashboardLayout>
