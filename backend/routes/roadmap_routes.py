@@ -1,6 +1,7 @@
 from flask import Blueprint, request, jsonify, g
 import datetime
 from bson.objectid import ObjectId
+from bson.errors import InvalidId
 
 from database.db import roadmaps, users, notifications
 from middleware.auth_middleware import token_required
@@ -99,20 +100,172 @@ def get_roadmaps(current_user):
 @token_required
 def get_roadmap(current_user, roadmap_id):
     try:
-        roadmap = roadmaps.find_one({'_id': ObjectId(roadmap_id)})
+        # Validate roadmap_id format
+        if not roadmap_id or roadmap_id == 'null' or roadmap_id == 'undefined':
+            return jsonify({'message': 'Invalid roadmap ID'}), 400
+        
+        try:
+            roadmap = roadmaps.find_one({'_id': ObjectId(roadmap_id)})
+        except InvalidId:
+            return jsonify({'message': 'Invalid roadmap ID format'}), 400
         
         if not roadmap:
             return jsonify({'message': 'Roadmap not found'}), 404
         
         # Check if user is authorized to access this roadmap
         user_id = str(current_user['_id'])
-        if roadmap['mentor_id'] != user_id and roadmap['mentee_id'] != user_id:
-            return jsonify({'message': 'Unauthorized'}), 403
         
+        # Handle both field naming conventions safely
+        mentor_id = None
+        mentee_id = None
+        
+        # Get mentee_id - handle multiple possible locations
+        if 'mentee_id' in roadmap:
+            mentee_id = str(roadmap['mentee_id'])
+        elif 'menteeId' in roadmap:
+            if isinstance(roadmap['menteeId'], ObjectId):
+                mentee_id = str(roadmap['menteeId'])
+            else:
+                mentee_id = str(roadmap['menteeId'])
+        
+        # Get mentor_id from mentee's profile if not directly in roadmap
+        if 'mentor_id' in roadmap:
+            mentor_id = str(roadmap['mentor_id'])
+        elif 'mentorId' in roadmap:
+            if isinstance(roadmap['mentorId'], ObjectId):
+                mentor_id = str(roadmap['mentorId'])
+            else:
+                mentor_id = str(roadmap['mentorId'])
+        elif 'approvalStatus' in roadmap and 'mentorId' in roadmap['approvalStatus']:
+            if isinstance(roadmap['approvalStatus']['mentorId'], ObjectId):
+                mentor_id = str(roadmap['approvalStatus']['mentorId'])
+            else:
+                mentor_id = str(roadmap['approvalStatus']['mentorId'])
+        else:
+            # Get mentor_id from mentee's profile
+            if mentee_id:
+                mentee_doc = users.find_one({'_id': ObjectId(mentee_id)})
+                if mentee_doc and mentee_doc.get('mentors'):
+                    # Get first mentor
+                    mentor_obj_id = mentee_doc['mentors'][0]
+                    mentor_id = str(mentor_obj_id) if isinstance(mentor_obj_id, ObjectId) else mentor_obj_id
+        
+        print(f"Debug: user_id={user_id}, mentor_id={mentor_id}, mentee_id={mentee_id}")
+        
+        # Check authorization - ALLOW BOTH MENTOR AND MENTEE ACCESS
+        if not mentee_id:
+            return jsonify({'message': 'Roadmap missing mentee ID'}), 400
+            
+        if user_id != mentor_id and user_id != mentee_id:
+            return jsonify({'message': 'Unauthorized access to this roadmap'}), 403
+        
+        # Convert main _id to string
         roadmap['_id'] = str(roadmap['_id'])
+        
+        # Convert other ObjectIds to strings for consistent response
+        def convert_objectids(obj):
+            if isinstance(obj, dict):
+                for key, value in obj.items():
+                    if isinstance(value, ObjectId):
+                        obj[key] = str(value)
+                    elif isinstance(value, (dict, list)):
+                        convert_objectids(value)
+            elif isinstance(obj, list):
+                for item in obj:
+                    convert_objectids(item)
+        
+        convert_objectids(roadmap)
+        
+        # Add assessment scores for each module if they exist
+        if 'assessment_scores' in roadmap:
+            # Convert assessment scores ObjectIds to strings
+            assessment_scores = {}
+            for user_id_key, scores in roadmap['assessment_scores'].items():
+                assessment_scores[str(user_id_key)] = scores
+            roadmap['assessment_scores'] = assessment_scores
+        
+        # Only remove questions if user is mentee (mentors can see questions for review)
+        if current_user['role'] == 'mentee':
+            def remove_questions(obj):
+                if isinstance(obj, dict):
+                    # Remove question fields but keep assessment_scores
+                    obj.pop('questions', None)
+                    obj.pop('mcq_questions', None)
+                    obj.pop('question_list', None)
+                    obj.pop('evaluation', None)  # Remove evaluation questions
+                    
+                    # Recursively process nested objects
+                    for key, value in obj.items():
+                        if key != 'assessment_scores':  # Don't remove assessment scores
+                            remove_questions(value)
+                elif isinstance(obj, list):
+                    for item in obj:
+                        remove_questions(item)
+            
+            remove_questions(roadmap)
+        
         return jsonify(roadmap), 200
-    except:
-        return jsonify({'message': 'Invalid roadmap ID'}), 400
+        
+    except Exception as e:
+        print(f"Error in get_roadmap: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'message': f'Error retrieving roadmap: {str(e)}'}), 500
+
+@roadmap_bp.route('/<roadmap_id>/resource/<resource_id>/toggle', methods=['POST'])
+@token_required
+def toggle_resource_completion(current_user, roadmap_id, resource_id):
+    try:
+        data = request.get_json()
+        completed = data.get('completed', False)
+        
+        roadmap = roadmaps.find_one({'_id': ObjectId(roadmap_id)})
+        
+        if not roadmap:
+            return jsonify({'message': 'Roadmap not found'}), 404
+        
+        # Check if user is authorized (only mentees can toggle resources)
+        user_id = str(current_user['_id'])
+        
+        # Handle both field naming conventions for mentee_id
+        mentee_id = None
+        if 'mentee_id' in roadmap:
+            mentee_id = str(roadmap['mentee_id'])
+        elif 'menteeId' in roadmap:
+            if isinstance(roadmap['menteeId'], ObjectId):
+                mentee_id = str(roadmap['menteeId'])
+            else:
+                mentee_id = str(roadmap['menteeId'])
+            
+        if not mentee_id or user_id != mentee_id:
+            return jsonify({'message': 'Only mentees can toggle resource completion'}), 403
+        
+        # Parse resource_id (format: moduleIndex-subtopicIndex-resourceIndex)
+        try:
+            module_idx, subtopic_idx, resource_idx = map(int, resource_id.split('-'))
+        except ValueError:
+            return jsonify({'message': 'Invalid resource ID format'}), 400
+        
+        # Validate indices
+        if (module_idx >= len(roadmap['modules']) or 
+            subtopic_idx >= len(roadmap['modules'][module_idx].get('subtopics', [])) or
+            resource_idx >= len(roadmap['modules'][module_idx]['subtopics'][subtopic_idx].get('resources', []))):
+            return jsonify({'message': 'Resource not found'}), 404
+        
+        # Update the resource completion status
+        roadmaps.update_one(
+            {'_id': ObjectId(roadmap_id)},
+            {'$set': {
+                f'modules.{module_idx}.subtopics.{subtopic_idx}.resources.{resource_idx}.completed': completed,
+                'updated_at': datetime.datetime.utcnow()
+            }}
+        )
+        
+        return jsonify({'message': 'Resource completion status updated'}), 200
+            
+    except Exception as e:
+        print(f"Error in toggle_resource_completion: {str(e)}")
+        return jsonify({'message': f'Error updating resource: {str(e)}'}), 500
 
 @roadmap_bp.route('/interview/add', methods=['POST'])
 @token_required
@@ -127,14 +280,262 @@ def add_interview(current_user):
         return jsonify({"message": "roadmap_id, interview_num, and context are required"}), 400
 
     try:
-        if interview_num == 1:
-            RoadmapModel.set_interview_theme_1(roadmap_id, context)
+        # Check if user is authorized (only mentors can set interview context)
+        roadmap = roadmaps.find_one({'_id': ObjectId(roadmap_id)})
+        if not roadmap:
+            return jsonify({"message": "Roadmap not found"}), 404
+        
+        user_id = str(current_user['_id'])
+        mentor_id = None
+        
+        # Get mentee_id first
+        mentee_id = None
+        if 'mentee_id' in roadmap:
+            mentee_id = str(roadmap['mentee_id'])
+        elif 'menteeId' in roadmap:
+            if isinstance(roadmap['menteeId'], ObjectId):
+                mentee_id = str(roadmap['menteeId'])
+            else:
+                mentee_id = str(roadmap['menteeId'])
+        
+        # Try to get mentor_id from roadmap first, then from mentee's profile
+        if 'mentor_id' in roadmap:
+            mentor_id = str(roadmap['mentor_id'])
+        elif 'mentorId' in roadmap:
+            if isinstance(roadmap['mentorId'], ObjectId):
+                mentor_id = str(roadmap['mentorId'])
+            else:
+                mentor_id = str(roadmap['mentorId'])
+        elif 'approvalStatus' in roadmap and 'mentorId' in roadmap['approvalStatus']:
+            if isinstance(roadmap['approvalStatus']['mentorId'], ObjectId):
+                mentor_id = str(roadmap['approvalStatus']['mentorId'])
+            else:
+                mentor_id = str(roadmap['approvalStatus']['mentorId'])
         else:
-            RoadmapModel.set_interview_theme_2(roadmap_id, context)
+            # Get mentor_id from mentee's profile
+            if mentee_id:
+                mentee_doc = users.find_one({'_id': ObjectId(mentee_id)})
+                if mentee_doc and mentee_doc.get('mentors'):
+                    mentor_obj_id = mentee_doc['mentors'][0]
+                    mentor_id = str(mentor_obj_id) if isinstance(mentor_obj_id, ObjectId) else mentor_obj_id
+        
+        if not mentor_id or user_id != mentor_id:
+            return jsonify({"message": "Only mentors can set interview context"}), 403
+        
+        # Set the interview theme
+        if interview_num == 1:
+            roadmaps.update_one(
+                {'_id': ObjectId(roadmap_id)},
+                {'$set': {
+                    'interview_theme_1': context,
+                    'updated_at': datetime.datetime.utcnow()
+                }}
+            )
+        else:
+            roadmaps.update_one(
+                {'_id': ObjectId(roadmap_id)},
+                {'$set': {
+                    'interview_theme_2': context,
+                    'updated_at': datetime.datetime.utcnow()
+                }}
+            )
+            
         return jsonify({"message": "Interview theme added successfully"}), 201
     except Exception as e:
         return jsonify({"message": f"Failed to add interview theme: {str(e)}"}), 500
 
+@roadmap_bp.route('/<roadmap_id>/<int:module_index>/assessment/get', methods=['GET'])
+@token_required
+def get_mcq_assessment(current_user, roadmap_id, module_index):
+    """Get MCQ questions for a module assessment"""
+    # Check if user has access to this roadmap
+    roadmap = roadmaps.find_one({'_id': ObjectId(roadmap_id)})
+    if not roadmap:
+        return jsonify({"message": "Roadmap not found"}), 404
+    
+    # Verify user access (mentee or mentor)
+    user_id = str(current_user['_id'])
+    mentor_id = None
+    mentee_id = None
+    
+    # Get mentee_id
+    if 'mentee_id' in roadmap:
+        mentee_id = str(roadmap['mentee_id'])
+    elif 'menteeId' in roadmap:
+        mentee_id = str(roadmap['menteeId']) if isinstance(roadmap['menteeId'], str) else str(roadmap['menteeId'])
+    
+    # Get mentor_id from roadmap or mentee's profile
+    if 'mentor_id' in roadmap:
+        mentor_id = str(roadmap['mentor_id'])
+    elif 'mentorId' in roadmap:
+        mentor_id = str(roadmap['mentorId']) if isinstance(roadmap['mentorId'], str) else str(roadmap['mentorId'])
+    elif 'approvalStatus' in roadmap and 'mentorId' in roadmap['approvalStatus']:
+        mentor_id = str(roadmap['approvalStatus']['mentorId'])
+    else:
+        # Get mentor_id from mentee's profile
+        if mentee_id:
+            mentee_doc = users.find_one({'_id': ObjectId(mentee_id)})
+            if mentee_doc and mentee_doc.get('mentors'):
+                mentor_obj_id = mentee_doc['mentors'][0]
+                mentor_id = str(mentor_obj_id) if isinstance(mentor_obj_id, ObjectId) else mentor_obj_id
+    
+    if user_id != mentor_id and user_id != mentee_id:
+        return jsonify({"message": "Unauthorized"}), 403
+    
+    questions = get_assessment(roadmap_id, module_index)
+    if questions is None:
+        return jsonify({"message": "Assessment not found"}), 404
+    
+    # For mentees, don't return correct answers
+    if current_user['role'] == 'mentee':
+        for question in questions:
+            question.pop('correct_option', None)
+    
+    return jsonify({"questions": questions})
+
+@roadmap_bp.route('/<roadmap_id>/<int:module_index>/assessment/submit', methods=['POST'])
+@token_required
+def submit_mcq_score(current_user, roadmap_id, module_index):
+    """Submit assessment answers and calculate score"""
+    # Only mentees can submit scores
+    if current_user['role'] != 'mentee':
+        return jsonify({"message": "Only mentees can submit assessment scores"}), 403
+    
+    data = request.get_json()
+    selected_answers = data.get("selected_answers")  # Array of selected options
+    user_id = str(current_user['_id'])
+    
+    if not selected_answers or not isinstance(selected_answers, list):
+        return jsonify({"message": "Selected answers required"}), 400
+    
+    # Check if user has access to this roadmap
+    roadmap = roadmaps.find_one({'_id': ObjectId(roadmap_id)})
+    if not roadmap:
+        return jsonify({"message": "Roadmap not found"}), 404
+    
+    # Verify mentee access
+    mentee_id = None
+    if 'mentee_id' in roadmap:
+        mentee_id = str(roadmap['mentee_id'])
+    elif 'menteeId' in roadmap:
+        mentee_id = str(roadmap['menteeId']) if isinstance(roadmap['menteeId'], str) else str(roadmap['menteeId'])
+    
+    if user_id != mentee_id:
+        return jsonify({"message": "Unauthorized"}), 403
+    
+    # Get the questions with correct answers
+    questions = get_assessment(roadmap_id, module_index)
+    if not questions:
+        return jsonify({"message": "Assessment not found"}), 404
+    
+    if len(selected_answers) != len(questions):
+        return jsonify({"message": f"Expected {len(questions)} answers, received {len(selected_answers)}"}), 400
+    
+    # Calculate score
+    correct_count = 0
+    for i, (question, selected_answer) in enumerate(zip(questions, selected_answers)):
+        if question.get('correct_option') == selected_answer:
+            correct_count += 1
+    
+    score = round((correct_count / len(questions)) * 100)
+    
+    # Submit the calculated score
+    best_score = submit_score(roadmap_id, module_index, user_id, score)
+    if best_score is None:
+        return jsonify({"message": "Failed to submit score"}), 500
+    
+    return jsonify({
+        "message": "Assessment submitted successfully",
+        "current_score": score,
+        "best_score": best_score,
+        "correct_answers": correct_count,
+        "total_questions": len(questions),
+        "passed": score >= 80
+    })
+
+@roadmap_bp.route('/user/<user_id>', methods=['GET'])
+@token_required
+def get_user_roadmaps(current_user, user_id):
+    try:
+        current_user_id = str(current_user['_id'])
+        
+        # Check authorization - users can only access their own roadmaps
+        if current_user_id != user_id:
+            return jsonify({'message': 'Unauthorized'}), 403
+        
+        role = current_user['role']
+        
+        # Build query based on role and handle both field naming conventions
+        if role == 'mentor':
+            # For mentors, find roadmaps where they are the mentor of the mentee
+            # First, find all mentees where this mentor is listed
+            mentee_docs = list(users.find({
+                'mentors': {'$in': [ObjectId(user_id), user_id]}
+            }))
+            
+            mentee_ids = [str(mentee['_id']) for mentee in mentee_docs]
+            
+            if not mentee_ids:
+                return jsonify([]), 200
+            
+            # Find roadmaps for these mentees
+            query = {
+                '$or': [
+                    {'mentee_id': {'$in': mentee_ids}},
+                    {'menteeId': {'$in': mentee_ids}},
+                    {'menteeId': {'$in': [ObjectId(mid) for mid in mentee_ids]}}
+                ]
+            }
+        else:  # mentee
+            # Find roadmaps where user is mentee (handle both formats)
+            query = {
+                '$or': [
+                    {'mentee_id': user_id},
+                    {'menteeId': user_id},
+                    {'menteeId': ObjectId(user_id)}
+                ]
+            }
+        
+        roadmap_list = list(roadmaps.find(query))
+        
+        # Convert ObjectIds to strings and remove evaluation questions
+        for roadmap in roadmap_list:
+            roadmap['_id'] = str(roadmap['_id'])
+            
+            # Convert other ObjectIds
+            def convert_objectids(obj):
+                if isinstance(obj, dict):
+                    for key, value in obj.items():
+                        if isinstance(value, ObjectId):
+                            obj[key] = str(value)
+                        elif isinstance(value, (dict, list)):
+                            convert_objectids(value)
+                elif isinstance(obj, list):
+                    for item in obj:
+                        convert_objectids(item)
+            
+            convert_objectids(roadmap)
+            
+            # Only remove evaluation questions for mentees
+            if role == 'mentee':
+                def remove_questions(obj):
+                    if isinstance(obj, dict):
+                        obj.pop('evaluation', None)
+                        for value in obj.values():
+                            remove_questions(value)
+                    elif isinstance(obj, list):
+                        for item in obj:
+                            remove_questions(item)
+                
+                remove_questions(roadmap)
+        
+        return jsonify(roadmap_list), 200
+        
+    except Exception as e:
+        print(f"Error in get_user_roadmaps: {str(e)}")
+        return jsonify({'message': f'Error retrieving roadmaps: {str(e)}'}), 500
+
+# Additional routes...
 @roadmap_bp.route('/<roadmap_id>', methods=['PUT'])
 @token_required
 def update_roadmap(current_user, roadmap_id):
@@ -189,59 +590,6 @@ def update_roadmap(current_user, roadmap_id):
     except:
         return jsonify({'message': 'Invalid roadmap ID'}), 400
 
-@roadmap_bp.route('/<roadmap_id>/modules/<module_index>/complete', methods=['POST'])
-@token_required
-def complete_module(current_user, roadmap_id, module_index):
-    try:
-        module_index = int(module_index)
-        roadmap = roadmaps.find_one({'_id': ObjectId(roadmap_id)})
-        
-        if not roadmap:
-            return jsonify({'message': 'Roadmap not found'}), 404
-        
-        # Check if user is authorized to update this roadmap
-        user_id = str(current_user['_id'])
-        if roadmap['mentee_id'] != user_id:
-            return jsonify({'message': 'Only mentees can mark modules as complete'}), 403
-        
-        # Check if module exists
-        if module_index >= len(roadmap['modules']):
-            return jsonify({'message': 'Module not found'}), 404
-        
-        # Mark module as complete
-        roadmap['modules'][module_index]['completed'] = True
-        roadmap['modules'][module_index]['completed_at'] = datetime.datetime.utcnow()
-        
-        roadmaps.update_one(
-            {'_id': ObjectId(roadmap_id)},
-            {'$set': {
-                f'modules.{module_index}.completed': True,
-                f'modules.{module_index}.completed_at': datetime.datetime.utcnow(),
-                'updated_at': datetime.datetime.utcnow()
-            }}
-        )
-        
-        # Create notification for mentor
-        notification = {
-            'type': 'module_completed',
-            'from_user_id': user_id,
-            'to_user_id': roadmap['mentor_id'],
-            'from_username': current_user['username'],
-            'roadmap_id': roadmap_id,
-            'roadmap_title': roadmap['title'],
-            'module_title': roadmap['modules'][module_index]['title'],
-            'created_at': datetime.datetime.utcnow(),
-            'read': False
-        }
-        
-        notifications.insert_one(notification)
-        
-        return jsonify({'message': 'Module marked as complete'}), 200
-    except ValueError:
-        return jsonify({'message': 'Invalid module index'}), 400
-    except:
-        return jsonify({'message': 'Invalid roadmap ID'}), 400
-
 @roadmap_bp.route('/request', methods=['POST'])
 @token_required
 def request_roadmap(current_user):
@@ -280,88 +628,3 @@ def request_roadmap(current_user):
         return jsonify({'message': 'Roadmap request sent'}), 200
     except:
         return jsonify({'message': 'Invalid mentor ID'}), 400
-
-@roadmap_bp.route('/<roadmap_id>/<int:module_index>/assessment/get', methods=['GET'])
-@token_required
-def get_mcq_assessment(roadmap_id, module_index, current_user):
-    questions = get_assessment(roadmap_id, module_index)
-    if questions is None:
-        return jsonify({"message": "Not found"}), 404
-    return jsonify({"questions": questions})
-
-@roadmap_bp.route('/<roadmap_id>/<int:module_index>/assessment/submit', methods=['POST'])
-@token_required
-def submit_mcq_score(roadmap_id, module_index, current_user):
-    data = request.get_json()
-    score = data.get("score")
-    user_id = str(current_user['_id'])
-    if score is None:
-        return jsonify({"message": "Score required"}), 400
-    best_score = submit_score(roadmap_id, module_index, user_id, score)
-    if best_score is None:
-        return jsonify({"message": "Not found"}), 404
-    return jsonify({"message": "Score submitted", "best_score": best_score})
-
-@roadmap_bp.route('/<roadmap_id>/<int:module_index>/subtopics/complete', methods=['POST'])
-@token_required
-def complete_subtopics(roadmap_id, module_index, current_user):
-    data = request.get_json()
-    completed_subtopics = data.get("completed_subtopics", [])
-    if not isinstance(completed_subtopics, list) or not completed_subtopics:
-        return jsonify({"message": "completed_subtopics must be a non-empty list"}), 400
-
-    roadmap = roadmaps.find_one({'_id': ObjectId(roadmap_id)})
-    if not roadmap or int(module_index) >= len(roadmap.get('modules', [])):
-        return jsonify({"message": "Roadmap or module not found"}), 404
-
-    module = roadmap['modules'][int(module_index)]
-    updated = False
-
-    for subtopic in module.get('subtopics', []):
-        if subtopic['title'] in completed_subtopics:
-            # Mark all resources in this subtopic as completed
-            for resource in subtopic.get('resources', []):
-                if not resource.get('completed', False):
-                    resource['completed'] = True
-                    updated = True
-
-    if updated:
-        # Update the module in the DB
-        roadmaps.update_one(
-            {'_id': ObjectId(roadmap_id)},
-            {'$set': {f'modules.{module_index}': module}}
-        )
-        return jsonify({"message": "Selected subtopics marked as completed"}), 200
-    else:
-        return jsonify({"message": "No subtopics were updated"}), 200
-
-@roadmap_bp.route('/<roadmap_id>/<int:module_index>/resources/complete', methods=['POST'])
-@token_required
-def complete_resources(roadmap_id, module_index, current_user):
-    data = request.get_json()
-    completed_resources = data.get("completed_resources", [])
-    if not isinstance(completed_resources, list) or not completed_resources:
-        return jsonify({"message": "completed_resources must be a non-empty list"}), 400
-
-    roadmap = roadmaps.find_one({'_id': ObjectId(roadmap_id)})
-    if not roadmap or int(module_index) >= len(roadmap.get('modules', [])):
-        return jsonify({"message": "Roadmap or module not found"}), 404
-
-    module = roadmap['modules'][int(module_index)]
-    updated = False
-
-    for subtopic in module.get('subtopics', []):
-        for resource in subtopic.get('resources', []):
-            if resource['title'] in completed_resources and not resource.get('completed', False):
-                resource['completed'] = True
-                updated = True
-
-    if updated:
-        # Update the module in the DB
-        roadmaps.update_one(
-            {'_id': ObjectId(roadmap_id)},
-            {'$set': {f'modules.{module_index}': module}}
-        )
-        return jsonify({"message": "Selected resources marked as completed"}), 200
-    else:
-        return jsonify({"message": "No resources were updated"}), 200

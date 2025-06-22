@@ -3,18 +3,27 @@ from middleware.auth_middleware import token_required
 from database.db import users, roadmaps, meetings, messages
 from bson.objectid import ObjectId
 import datetime
-from utils.serialization import fix_object_ids
 
 dashboard_bp = Blueprint('dashboard', __name__)
 
 def get_roadmap_and_progress(mentee_id):
-    roadmap = roadmaps.find_one({'menteeId': ObjectId(mentee_id)})
+    # Handle both field naming conventions
+    roadmap = roadmaps.find_one({
+        '$or': [
+            {'menteeId': ObjectId(mentee_id)},
+            {'menteeId': mentee_id},
+            {'mentee_id': mentee_id}
+        ]
+    })
+    
     progress = 0
     roadmap_id = None
     roadmap_title = None
+    
     if roadmap:
         roadmap_id = str(roadmap['_id'])
-        roadmap_title = roadmap.get('goal') or roadmap.get('title')
+        roadmap_title = roadmap.get('goal') or roadmap.get('title') or "Learning Roadmap"
+        
         # Calculate progress: count completed resources vs total resources
         total_resources = 0
         completed_resources = 0
@@ -25,6 +34,7 @@ def get_roadmap_and_progress(mentee_id):
                     if resource.get('completed'):
                         completed_resources += 1
         progress = int((completed_resources / total_resources) * 100) if total_resources > 0 else 0
+    
     return roadmap_id, roadmap_title, progress
 
 @dashboard_bp.route('/mentee', methods=['GET'])
@@ -36,11 +46,12 @@ def mentee_dashboard(current_user):
     user_id = str(current_user['_id'])
     mentee = users.find_one({'_id': ObjectId(user_id)})
 
-    # Get mentor info (first mentor)
+    # Get mentor info (first mentor) - handle both ObjectId and string formats
     mentor = None
     mentor_id = None
     if mentee.get('mentors'):
-        mentor_id = mentee['mentors'][0]
+        mentor_id_raw = mentee['mentors'][0]
+        mentor_id = str(mentor_id_raw) if isinstance(mentor_id_raw, ObjectId) else mentor_id_raw
         mentor_doc = users.find_one({'_id': ObjectId(mentor_id)})
         if mentor_doc:
             mentor = {
@@ -57,7 +68,7 @@ def mentee_dashboard(current_user):
         now = datetime.datetime.utcnow()
         meeting = meetings.find_one(
             {
-                'mentor_id': str(mentor_id),
+                'mentor_id': mentor_id,
                 'mentee_id': user_id,
                 'start_time': {'$gte': now},
                 'status': 'scheduled'
@@ -78,8 +89,8 @@ def mentee_dashboard(current_user):
         msg = messages.find_one(
             {
                 '$or': [
-                    {'sender_id': user_id, 'receiver_id': str(mentor_id)},
-                    {'sender_id': str(mentor_id), 'receiver_id': user_id}
+                    {'sender_id': user_id, 'receiver_id': mentor_id},
+                    {'sender_id': mentor_id, 'receiver_id': user_id}
                 ]
             },
             sort=[('timestamp', -1)]
@@ -95,7 +106,7 @@ def mentee_dashboard(current_user):
     return jsonify({
         'mentor': mentor,
         'progress': progress,
-        'roadmap_id': roadmap_id,
+        'roadmap_id': roadmap_id,  # This can be None if no roadmap exists
         'roadmap_title': roadmap_title,
         'upcoming_meeting': upcoming_meeting,
         'last_message': last_msg,
@@ -117,10 +128,12 @@ def mentor_dashboard(current_user):
 
     mentees_data = []
     for mentee_id in mentee_ids:
-        mentee = users.find_one({'_id': ObjectId(mentee_id)})
+        # Handle both ObjectId and string formats
+        mentee_id_str = str(mentee_id) if isinstance(mentee_id, ObjectId) else mentee_id
+        mentee = users.find_one({'_id': ObjectId(mentee_id_str)})
         if not mentee:
             continue
-        mentee_id_str = str(mentee['_id'])
+        
         roadmap_id, roadmap_title, progress = get_roadmap_and_progress(mentee_id_str)
 
         # Get last message (if sent by mentee)
@@ -165,7 +178,7 @@ def mentor_dashboard(current_user):
             'id': mentee_id_str,
             'name': mentee.get('name'),
             'progress': progress,
-            'roadmap_id': roadmap_id,
+            'roadmap_id': roadmap_id,  # This can be None if no roadmap exists
             'roadmap_title': roadmap_title,
             'last_message': last_message,
             'upcoming_meeting': upcoming_meeting

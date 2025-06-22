@@ -109,7 +109,7 @@ export default function MenteeDashboard() {
               </div>
             </CardContent>
             <CardFooter>
-              <Link href={`/roadmap/${dashboard.roadmap_id}`} className="w-full">
+              <Link href={`/roadmap?id=${dashboard.roadmap_id}`} className="w-full">
                 <Button variant="outline" className="w-full">
                   View Full Roadmap
                 </Button>
