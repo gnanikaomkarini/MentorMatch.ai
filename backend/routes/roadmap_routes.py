@@ -176,19 +176,28 @@ def get_roadmap(current_user, roadmap_id):
         
         convert_objectids(roadmap)
         
+        # Add assessment scores for each module if they exist
+        if 'assessment_scores' in roadmap:
+            # Convert assessment scores ObjectIds to strings
+            assessment_scores = {}
+            for user_id_key, scores in roadmap['assessment_scores'].items():
+                assessment_scores[str(user_id_key)] = scores
+            roadmap['assessment_scores'] = assessment_scores
+        
         # Only remove questions if user is mentee (mentors can see questions for review)
         if current_user['role'] == 'mentee':
             def remove_questions(obj):
                 if isinstance(obj, dict):
-                    # Remove question fields
+                    # Remove question fields but keep assessment_scores
                     obj.pop('questions', None)
                     obj.pop('mcq_questions', None)
                     obj.pop('question_list', None)
                     obj.pop('evaluation', None)  # Remove evaluation questions
                     
                     # Recursively process nested objects
-                    for value in obj.values():
-                        remove_questions(value)
+                    for key, value in obj.items():
+                        if key != 'assessment_scores':  # Don't remove assessment scores
+                            remove_questions(value)
                 elif isinstance(obj, list):
                     for item in obj:
                         remove_questions(item)
@@ -387,20 +396,17 @@ def get_mcq_assessment(current_user, roadmap_id, module_index):
 @roadmap_bp.route('/<roadmap_id>/<int:module_index>/assessment/submit', methods=['POST'])
 @token_required
 def submit_mcq_score(current_user, roadmap_id, module_index):
-    """Submit assessment score"""
+    """Submit assessment answers and calculate score"""
     # Only mentees can submit scores
     if current_user['role'] != 'mentee':
         return jsonify({"message": "Only mentees can submit assessment scores"}), 403
     
     data = request.get_json()
-    score = data.get("score")
+    selected_answers = data.get("selected_answers")  # Array of selected options
     user_id = str(current_user['_id'])
     
-    if score is None:
-        return jsonify({"message": "Score required"}), 400
-    
-    if not isinstance(score, (int, float)) or score < 0 or score > 100:
-        return jsonify({"message": "Score must be a number between 0 and 100"}), 400
+    if not selected_answers or not isinstance(selected_answers, list):
+        return jsonify({"message": "Selected answers required"}), 400
     
     # Check if user has access to this roadmap
     roadmap = roadmaps.find_one({'_id': ObjectId(roadmap_id)})
@@ -417,14 +423,34 @@ def submit_mcq_score(current_user, roadmap_id, module_index):
     if user_id != mentee_id:
         return jsonify({"message": "Unauthorized"}), 403
     
+    # Get the questions with correct answers
+    questions = get_assessment(roadmap_id, module_index)
+    if not questions:
+        return jsonify({"message": "Assessment not found"}), 404
+    
+    if len(selected_answers) != len(questions):
+        return jsonify({"message": f"Expected {len(questions)} answers, received {len(selected_answers)}"}), 400
+    
+    # Calculate score
+    correct_count = 0
+    for i, (question, selected_answer) in enumerate(zip(questions, selected_answers)):
+        if question.get('correct_option') == selected_answer:
+            correct_count += 1
+    
+    score = round((correct_count / len(questions)) * 100)
+    
+    # Submit the calculated score
     best_score = submit_score(roadmap_id, module_index, user_id, score)
     if best_score is None:
         return jsonify({"message": "Failed to submit score"}), 500
     
     return jsonify({
-        "message": "Score submitted successfully", 
+        "message": "Assessment submitted successfully",
         "current_score": score,
-        "best_score": best_score
+        "best_score": best_score,
+        "correct_answers": correct_count,
+        "total_questions": len(questions),
+        "passed": score >= 80
     })
 
 @roadmap_bp.route('/user/<user_id>', methods=['GET'])

@@ -43,6 +43,7 @@ interface RoadmapData {
   modules: Module[]
   interview_theme_1?: string
   interview_theme_2?: string
+  assessment_scores?: { [userId: string]: { [moduleIndex: string]: number } }
   approvalStatus?: {
     mentorId: string
     status: string
@@ -113,6 +114,9 @@ export default function RoadmapPage() {
   }, [roadmapId])
 
   const toggleModule = (index: number) => {
+    // Only allow expansion if module is accessible
+    if (!canAccessModule(index) && userRole === "mentee") return
+    
     setExpandedModules((prev) => {
       if (prev.includes(index)) {
         return prev.filter((i) => i !== index)
@@ -389,6 +393,48 @@ export default function RoadmapPage() {
     }
   }
 
+  // Update the module assessment score
+  const getModuleAssessmentScore = (moduleIndex: number) => {
+    if (!roadmapData?.modules) return null
+    
+    // Check if the module has assessment_scores
+    const module = roadmapData.modules[moduleIndex]
+    if (!module || !module.assessment_scores) return null
+    
+    // For mentors, get the mentee's score (there should only be one user in assessment_scores)
+    if (userRole === "mentor") {
+      const userIds = Object.keys(module.assessment_scores)
+      if (userIds.length > 0) {
+        return module.assessment_scores[userIds[0]] || null
+      }
+      return null
+    }
+    
+    // For mentees, get their own score
+    if (!userId) return null
+    return module.assessment_scores[userId] || null
+  }
+
+  // Update the hasPassedAssessment function  
+  const hasPassedAssessment = (moduleIndex: number) => {
+    const score = getModuleAssessmentScore(moduleIndex)
+    return score !== null && score >= 80 // 80% passing grade
+  }
+
+  const canAccessModule = (moduleIndex: number) => {
+    if (moduleIndex === 0) return true // First module is always accessible
+    
+    // Check if previous module is completed AND assessment is passed
+    const previousModule = roadmapData?.modules[moduleIndex - 1]
+    if (!previousModule) return false
+    
+    const previousModuleCompleted = isModuleCompleted(previousModule)
+    const previousAssessmentPassed = hasPassedAssessment(moduleIndex - 1)
+    
+    return previousModuleCompleted && previousAssessmentPassed
+  }
+
+  // Add loading state handling before the return statement
   if (loading) {
     return (
       <DashboardLayout userRole={userRole}>
@@ -453,11 +499,15 @@ export default function RoadmapPage() {
             </TabsList>
 
             <TabsContent value="modules" className="space-y-4">
-              {roadmapData.modules.map((module, moduleIndex) => {
+              {roadmapData.modules.map((module, index) => {
+                const moduleIndex = index
                 const moduleProgress = calculateModuleProgress(module)
                 const moduleCompleted = isModuleCompleted(module)
                 const isInterviewModule = moduleIndex === Math.ceil(roadmapData.modules.length / 2) - 1 || 
                                         moduleIndex === roadmapData.modules.length - 1
+                const isAccessible = canAccessModule(moduleIndex)
+                const assessmentScore = getModuleAssessmentScore(moduleIndex)
+                const assessmentPassed = hasPassedAssessment(moduleIndex)
 
                 return (
                   <div key={moduleIndex}>
@@ -467,30 +517,61 @@ export default function RoadmapPage() {
                           <div className="flex items-center space-x-2">
                             <div
                               className={`flex items-center justify-center w-8 h-8 rounded-full ${
-                                moduleCompleted
-                                  ? "bg-green-100 text-green-600 dark:bg-green-900 dark:text-green-300"
-                                  : "bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400"
+                                !isAccessible && userRole === "mentee"
+                                  ? "bg-gray-100 text-gray-400 dark:bg-gray-800 dark:text-gray-500"
+                                  : moduleCompleted
+                                    ? "bg-green-100 text-green-600 dark:bg-green-900 dark:text-green-300"
+                                    : "bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400"
                               }`}
                             >
-                              {moduleCompleted ? <CheckCircle className="h-5 w-5" /> : <span>{moduleIndex + 1}</span>}
+                              {!isAccessible && userRole === "mentee" ? (
+                                <Lock className="h-5 w-5" />
+                              ) : moduleCompleted ? (
+                                <CheckCircle className="h-5 w-5" />
+                              ) : (
+                                <span>{moduleIndex + 1}</span>
+                              )}
                             </div>
-                            <div>
+                            <div className={!isAccessible && userRole === "mentee" ? "opacity-50" : ""}>
                               <CardTitle className="text-lg">{module.title}</CardTitle>
                               <CardDescription>{module.objective}</CardDescription>
                             </div>
                           </div>
                           <div className="flex items-center space-x-2">
-                            <Badge variant="outline">{moduleProgress}% Complete</Badge>
-                            {expandedModules.includes(moduleIndex) ? (
-                              <ChevronDown className="h-5 w-5" />
+                            {!isAccessible && userRole === "mentee" ? (
+                              <Badge variant="outline" className="bg-gray-50 text-gray-500">
+                                🔒 Locked
+                              </Badge>
                             ) : (
-                              <ChevronRight className="h-5 w-5" />
+                              <>
+                                <Badge variant="outline">{moduleProgress}% Complete</Badge>
+                                {/* Assessment Score Display */}
+                                {assessmentScore !== null && (
+                                  <Badge 
+                                    variant={assessmentPassed ? "default" : "destructive"}
+                                    className={`text-xs ${
+                                      assessmentPassed 
+                                        ? "bg-green-100 text-green-800 border-green-200" 
+                                        : "bg-red-100 text-red-800 border-red-200"
+                                    }`}
+                                  >
+                                    Test: {assessmentScore}%
+                                  </Badge>
+                                )}
+                              </>
+                            )}
+                            {isAccessible && (
+                              expandedModules.includes(moduleIndex) ? (
+                                <ChevronDown className="h-5 w-5" />
+                              ) : (
+                                <ChevronRight className="h-5 w-5" />
+                              )
                             )}
                           </div>
                         </div>
                       </CardHeader>
 
-                      {expandedModules.includes(moduleIndex) && (
+                      {expandedModules.includes(moduleIndex) && isAccessible && (
                         <>
                           <CardContent>
                             <div className="space-y-6">
@@ -638,29 +719,138 @@ export default function RoadmapPage() {
                             </div>
                           </CardContent>
 
-                          <CardFooter>
+                          <CardFooter className="bg-gray-50 dark:bg-gray-800/50 border-t">
                             {moduleCompleted ? (
-                              <div className="flex justify-between w-full">
-                                <div className="flex items-center text-green-600 dark:text-green-400">
-                                  <CheckCircle className="h-4 w-4 mr-2" />
-                                  <span>Module completed</span>
+                              <div className="w-full space-y-3">
+                                {/* Main completion status and assessment button/status */}
+                                <div className="flex justify-between items-center">
+                                  <div className="flex items-center gap-3">
+                                    <div className="flex items-center text-green-600 dark:text-green-400">
+                                      <CheckCircle className="h-5 w-5 mr-2" />
+                                      <span className="font-medium">Module completed</span>
+                                    </div>
+                                    
+                                    {/* Assessment Status Badge for both mentor and mentee */}
+                                    {assessmentScore !== null && (
+                                      <Badge 
+                                        variant={assessmentPassed ? "default" : "destructive"}
+                                        className={`${
+                                          assessmentPassed 
+                                            ? "bg-green-100 text-green-800 border-green-300" 
+                                            : "bg-red-100 text-red-800 border-red-300"
+                                        }`}
+                                      >
+                                        {assessmentPassed ? '✓ Passed' : '✗ Failed'} ({assessmentScore}%)
+                                      </Badge>
+                                    )}
+                                    
+                                    {/* Show if no assessment taken yet */}
+                                    {assessmentScore === null && (
+                                      <Badge variant="outline" className="bg-gray-50 text-gray-600 border-gray-300">
+                                        Assessment not taken
+                                      </Badge>
+                                    )}
+                                  </div>
+                                  
+                                  {/* Only show Take Assessment button for mentees */}
+                                  {userRole === "mentee" && (
+                                    <Button
+                                      size="sm"
+                                      className={`${
+                                        assessmentScore !== null 
+                                          ? "bg-blue-600 hover:bg-blue-700" 
+                                          : "bg-purple-600 hover:bg-purple-700"
+                                      } font-medium px-6`}
+                                      onClick={() => router.push(`/roadmap/assessment?moduleId=${moduleIndex}&roadmapId=${roadmapId}`)}
+                                    >
+                                      {assessmentScore !== null ? 'Retake Assessment' : 'Take Assessment'}
+                                    </Button>
+                                  )}
+                                  
+                                  {/* For mentors, show assessment status text */}
+                                  {userRole === "mentor" && assessmentScore === null && (
+                                    <span className="text-sm text-gray-500 italic">
+                                      Waiting for mentee to take assessment
+                                    </span>
+                                  )}
                                 </div>
-                                <Button
-                                  className="bg-purple-600 hover:bg-purple-700"
-                                  onClick={() => router.push(`/roadmap/assessment?moduleId=${moduleIndex}&roadmapId=${roadmapId}`)}
-                                >
-                                  Take Assessment
-                                </Button>
+                                
+                                {/* Warning/Status Messages */}
+                                {moduleCompleted && !assessmentPassed && moduleIndex < roadmapData.modules.length - 1 && (
+                                  <div className="flex items-center gap-2 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
+                                    <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+                                    <p className="text-sm text-amber-800 dark:text-amber-200">
+                                      {userRole === "mentee" ? (
+                                        <>
+                                          <span className="font-medium">Pass the assessment (80%+)</span> to unlock the next module
+                                        </>
+                                      ) : (
+                                        <>
+                                          <span className="font-medium">Mentee needs to pass assessment (80%+)</span> to unlock the next module
+                                        </>
+                                      )}
+                                    </p>
+                                  </div>
+                                )}
+                                
+                                {/* Success message for passed assessment */}
+                                {moduleCompleted && assessmentPassed && moduleIndex < roadmapData.modules.length - 1 && (
+                                  <div className="flex items-center gap-2 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+                                    <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400 flex-shrink-0" />
+                                    <p className="text-sm text-green-800 dark:text-green-200">
+                                      {userRole === "mentee" ? (
+                                        <>
+                                          <span className="font-medium">Great job!</span> Next module is now unlocked
+                                        </>
+                                      ) : (
+                                        <>
+                                          <span className="font-medium">Assessment passed!</span> Next module is unlocked for mentee
+                                        </>
+                                      )}
+                                    </p>
+                                  </div>
+                                )}
+                                
+                                {/* No assessment taken message */}
+                                {moduleCompleted && assessmentScore === null && (
+                                  <div className="flex items-center gap-2 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                                    <AlertCircle className="h-4 w-4 text-blue-600 dark:text-blue-400 flex-shrink-0" />
+                                    <p className="text-sm text-blue-800 dark:text-blue-200">
+                                      {userRole === "mentee" ? (
+                                        <>
+                                          <span className="font-medium">Take the assessment</span> to unlock the next module
+                                        </>
+                                      ) : (
+                                        <>
+                                          <span className="font-medium">Waiting for mentee</span> to take the assessment
+                                        </>
+                                      )}
+                                    </p>
+                                  </div>
+                                )}
                               </div>
                             ) : (
-                              <div className="flex justify-end w-full">
+                              <div className="w-full text-center py-2">
                                 <p className="text-sm text-gray-500 dark:text-gray-400">
-                                  Complete all resources to unlock assessment
+                                  {userRole === "mentee" 
+                                    ? "Complete all resources to unlock assessment"
+                                    : "Mentee needs to complete all resources to unlock assessment"
+                                  }
                                 </p>
                               </div>
                             )}
                           </CardFooter>
                         </>
+                      )}
+
+                      {/* Show locked message when module is not accessible */}
+                      {!isAccessible && userRole === "mentee" && (
+                        <CardContent>
+                          <div className="text-center py-8">
+                            <Lock className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                            <p className="text-gray-500">Complete the previous module and pass its assessment to unlock this module.</p>
+                          </div>
+                        </CardContent>
                       )}
                     </Card>
 
@@ -776,7 +966,9 @@ export default function RoadmapPage() {
               <Card>
                 <CardHeader>
                   <CardTitle>Learning Timeline</CardTitle>
-                  <CardDescription>Your learning progress over time</CardDescription>
+                  <CardDescription>
+                    {userRole === "mentee" ? "Your learning progress over time" : "Mentee's learning progress over time"}
+                  </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-8">
@@ -786,16 +978,26 @@ export default function RoadmapPage() {
                         {roadmapData.modules.map((module, index) => {
                           const moduleCompleted = isModuleCompleted(module)
                           const moduleProgress = calculateModuleProgress(module)
+                          const assessmentScore = getModuleAssessmentScore(index)
+                          const assessmentPassed = hasPassedAssessment(index)
                           
                           return (
                             <div key={index} className="relative pl-10">
                               <div className={`absolute left-0 top-1 w-8 h-8 rounded-full flex items-center justify-center ${
-                                moduleCompleted
+                                moduleCompleted && assessmentPassed
                                   ? "bg-green-100 dark:bg-green-900"
-                                  : "bg-gray-100 dark:bg-gray-800"
+                                  : moduleCompleted && assessmentScore !== null
+                                    ? "bg-red-100 dark:bg-red-900"
+                                    : moduleCompleted
+                                      ? "bg-yellow-100 dark:bg-yellow-900"
+                                      : "bg-gray-100 dark:bg-gray-800"
                               }`}>
-                                {moduleCompleted ? (
+                                {moduleCompleted && assessmentPassed ? (
                                   <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400" />
+                                ) : moduleCompleted && assessmentScore !== null ? (
+                                  <XCircle className="h-5 w-5 text-red-600 dark:text-red-400" />
+                                ) : moduleCompleted ? (
+                                  <AlertCircle className="h-5 w-5 text-yellow-600 dark:text-yellow-400" />
                                 ) : (
                                   <span className="text-gray-500 dark:text-gray-400">{index + 1}</span>
                                 )}
@@ -803,9 +1005,13 @@ export default function RoadmapPage() {
                               <div>
                                 <h3 className="font-medium">{module.title}</h3>
                                 <p className="text-sm text-gray-500 dark:text-gray-400">
-                                  {moduleCompleted 
-                                    ? "Completed" 
-                                    : `${moduleProgress}% complete`
+                                  {moduleCompleted && assessmentPassed
+                                    ? `✅ Completed & Passed • Assessment: ${assessmentScore}%`
+                                    : moduleCompleted && assessmentScore !== null
+                                      ? `❌ Assessment Failed • Score: ${assessmentScore}%`
+                                      : moduleCompleted
+                                        ? "⏳ Assessment pending"
+                                        : `📚 ${moduleProgress}% complete`
                                   }
                                 </p>
                               </div>
