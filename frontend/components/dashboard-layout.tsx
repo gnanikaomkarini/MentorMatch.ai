@@ -29,14 +29,12 @@ export default function DashboardLayout({ children, userRole, userName, userEmai
     { name: "Roadmap", href: "/roadmap", icon: <BarChart className="h-5 w-5" /> },
     { name: "Chat", href: "/chat", icon: <MessageSquare className="h-5 w-5" /> },
     { name: "Schedule", href: "/schedule", icon: <Calendar className="h-5 w-5" /> },
-    { name: "Profile", href: "/profile/mentee", icon: <User className="h-5 w-5" /> },
   ]
 
   const mentorNavItems = [
     { name: "Dashboard", href: "/dashboard/mentor", icon: <Home className="h-5 w-5" /> },
     { name: "Chat", href: "/chat", icon: <MessageSquare className="h-5 w-5" /> },
     { name: "Schedule", href: "/schedule", icon: <Calendar className="h-5 w-5" /> },
-    { name: "Profile", href: "/profile/mentor", icon: <User className="h-5 w-5" /> },
   ]
 
   const navItems = userRole === "mentee" ? menteeNavItems : mentorNavItems
@@ -104,21 +102,7 @@ export default function DashboardLayout({ children, userRole, userName, userEmai
               </Link>
             ))}
           </div>
-          <div className="p-4 border-t border-gray-200 dark:border-gray-800">
-            <div className="flex items-center">
-              <Avatar className="h-8 w-8 mr-3">
-                <AvatarImage src="/placeholder.svg" alt={userName} />
-                <AvatarFallback>{(userName || "U").charAt(0)}</AvatarFallback>
-              </Avatar>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{userName}</p>
-                <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{userEmail}</p>
-              </div>
-              <Button variant="ghost" size="icon" onClick={handleLogout}>
-                <LogOut className="h-5 w-5" />
-              </Button>
-            </div>
-          </div>
+          {/* Remove user profile from here */}
         </div>
       </div>
 
@@ -147,8 +131,13 @@ export default function DashboardLayout({ children, userRole, userName, userEmai
               </Link>
             ))}
           </div>
+          {/* Remove user profile from here */}
+          {/* Add user profile at the bottom left, clickable for profile page */}
           <div className="p-4 border-t border-gray-200 dark:border-gray-800">
-            <div className="flex items-center">
+            <Link
+              href={userRole === "mentee" ? "/profile/mentee" : "/profile/mentor"}
+              className="flex items-center group"
+            >
               <Avatar className="h-8 w-8 mr-3">
                 <AvatarImage src="/placeholder.svg" alt={userName} />
                 <AvatarFallback>{(userName || "U").charAt(0)}</AvatarFallback>
@@ -157,10 +146,17 @@ export default function DashboardLayout({ children, userRole, userName, userEmai
                 <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{userName}</p>
                 <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{userEmail}</p>
               </div>
-              <Button variant="ghost" size="icon" onClick={handleLogout}>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleLogout}
+                className="ml-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                title="Logout"
+                type="button"
+              >
                 <LogOut className="h-5 w-5" />
               </Button>
-            </div>
+            </Link>
           </div>
         </div>
       </div>
