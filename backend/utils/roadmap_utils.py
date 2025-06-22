@@ -80,8 +80,8 @@ def create_roadmap(topic) -> dict:
         enriched_subtopics = []
         for sub in mod["subtopics"]:
             resources = search_resources(f"{sub} {topic} site:youtube.com OR site:coursera.org OR free learning")
-            if resources and resources[0]["title"] == "Search failed":
-                continue
+            # if resources and resources[0]["title"] == "Search failed":
+            #     continue
             enriched_subtopics.append({
                 "title": sub,
                 "resources": resources
@@ -132,19 +132,20 @@ Format your response as valid JSON:
 def edit_roadmap(roadmap, instructions):
     llm = GeminiLLM(api_key=os.getenv("GEMINI_API_KEY"))
 
-    prompt=f'''
+    prompt = f'''
     You are an educational AI assistant. Follow the instructions given and modify the roadmap given below accordingly.
-    Respond ONLY with a valid JSON list of the roadmap in the exact same format as it was given.
+    Respond ONLY with a valid JSON object of the roadmap in the exact same format as it was given.
 
     Instructions: {instructions}
-    Roadmap: {roadmap} 
+    Roadmap: {roadmap}
     '''
 
     response = llm.invoke([{"role": "user", "content": prompt}])
     content = response.content.strip()
 
-    match = re.search(r"```(?:json)?\s*(\[.*?\])\s*```", content, re.DOTALL)
-    json_str = match.group(1).strip() if match else content.strip()
+    # Try to extract a JSON object from the response
+    match = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", content, re.DOTALL)
+    json_str = match.group(1).strip() if match else content
 
     try:
         return json.loads(json_str)
@@ -154,7 +155,5 @@ def edit_roadmap(roadmap, instructions):
             print("Cleaned content before ast.literal_eval:\n", cleaned)
             return ast.literal_eval(cleaned)
         except Exception as e:
-            print("\nFailed to parse LLM output:", json_str)
+            print("\nFailed to parse LLM output:", content)
             raise e
-
-
