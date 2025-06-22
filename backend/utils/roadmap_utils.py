@@ -129,6 +129,24 @@ Format your response as valid JSON:
 
     return enriched_modules
 
+def enrich_subtopics_with_resources(roadmap):
+    for module in roadmap.get("modules", []):
+        for subtopic in module.get("subtopics", []):
+            needs_update = (
+                "resources" not in subtopic
+                or not subtopic["resources"]
+                or subtopic["resources"][0].get("title") == "Search failed"
+            )
+            if needs_update:
+                query = f"{subtopic['title']} site:youtube.com OR site:coursera.org OR free learning"
+                resources = search_resources(query)
+                if resources and resources[0]["title"] != "Search failed":
+                    subtopic["resources"] = resources
+                else:
+                    module["subtopics"] = [s for s in module["subtopics"] if s != subtopic]
+    return roadmap
+
+
 def edit_roadmap(roadmap, instructions):
     llm = GeminiLLM(api_key=os.getenv("GEMINI_API_KEY"))
 
@@ -143,17 +161,14 @@ def edit_roadmap(roadmap, instructions):
     response = llm.invoke([{"role": "user", "content": prompt}])
     content = response.content.strip()
 
-    # Try to extract a JSON object from the response
     match = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", content, re.DOTALL)
     json_str = match.group(1).strip() if match else content
 
     try:
-        return json.loads(json_str)
+        updated_roadmap = json.loads(json_str)
     except json.JSONDecodeError:
-        try:
-            cleaned = re.sub(r"```(?:json)?|```", "", json_str).strip()
-            print("Cleaned content before ast.literal_eval:\n", cleaned)
-            return ast.literal_eval(cleaned)
-        except Exception as e:
-            print("\nFailed to parse LLM output:", content)
-            raise e
+        cleaned = re.sub(r"```(?:json)?|```", "", json_str).strip()
+        updated_roadmap = ast.literal_eval(cleaned)
+
+    return enrich_subtopics_with_resources(updated_roadmap)
+
