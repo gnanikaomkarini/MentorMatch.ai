@@ -404,6 +404,12 @@ export default function ChatPage() {
     }
   }
 
+  // Add this function after handleAIRoadmapGeneration
+  const handleCloseSuccessModal = () => {
+    setIsGeneratingRoadmap(false)
+    setRoadmapGenerated(false)
+  }
+
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault()
@@ -466,13 +472,32 @@ export default function ChatPage() {
                   </div>
                 ) : (
                   <div className="flex flex-col items-center justify-center py-8">
-                    <CheckCircle className="h-16 w-16 text-green-500 mb-2 animate-bounce" />
+                    <CheckCircle className="h-16 w-16 text-green-500 mb-4 animate-bounce" />
                     <h2 className="text-xl font-bold text-green-700 mb-2">
                       Roadmap Generated Successfully!
                     </h2>
-                    <p className="text-center text-gray-600">
-                      The personalized roadmap has been created based on your conversation.
+                    <p className="text-center text-gray-600 mb-6">
+                      The personalized roadmap has been created and updated based on your conversation with {selectedUser?.name}.
                     </p>
+                    <div className="flex gap-3 w-full">
+                      <Button 
+                        onClick={handleCloseSuccessModal}
+                        className="flex-1 bg-green-500 hover:bg-green-600 text-white"
+                      >
+                        Return to Chat
+                      </Button>
+                      <Button 
+                        variant="outline"
+                        onClick={() => {
+                          handleCloseSuccessModal()
+                          // Optional: Navigate to roadmap page
+                          window.open('/roadmap', '_blank')
+                        }}
+                        className="flex-1"
+                      >
+                        View Roadmap
+                      </Button>
+                    </div>
                   </div>
                 )}
               </CardContent>
