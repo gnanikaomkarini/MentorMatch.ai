@@ -32,21 +32,8 @@ Goal of the mentee giving the interviw is to learn: {goal}.
     messages.append({"role": "user", "content": history})
     questions = history.count('"question":')
     if questions >= 5:
-        return "Thank you for taking this interview. You will receive feeback from your mentor soon."
+        return "Thank you for taking this interview. You will receive feedback from your mentor soon."
     messages.append({"role": "user", "content": "What would be your next question?"})
 
     response = llm.invoke(messages)
     return response.content
-
-
-# theme = "AI in Healthcare"
-# instructions = "Keep it formal and technical."
-# additional_topics = ["ethical concerns", "AI diagnostics", "patient data privacy"]
-
-# history = '''
-#     {"question": "What motivated you to work in healthcare AI?", "answer": "I saw how AI can help doctors make faster decisions."},
-#     {"question": "Can you give an example of such a decision?", "answer": "Like predicting the risk of stroke from imaging data."}
-# '''
-
-# next_q = generate_next_question(theme, instructions, history, additional_topics)
-# print(next_q)

@@ -102,6 +102,37 @@ class UserModel:
         except Exception as e:
             print(f"Error linking mentor and mentee: {e}")
             return False
+    
+    @staticmethod
+    def add_roadmap_id_to_user(user_id, roadmap_id):
+        """Add or update roadmap_id field in user"""
+        try:
+            return users.update_one(
+                {'_id': ObjectId(user_id)},
+                {
+                    '$set': {
+                        'roadmap_id': ObjectId(roadmap_id),
+                        'updated_at': datetime.utcnow()
+                    }
+                }
+            )
+        except Exception as e:
+            print(f"Error adding roadmap_id to user: {e}")
+            return None
+
+    @staticmethod
+    def get_user_roadmap_id(user_id):
+        """Fetch roadmap_id from user document if exists"""
+        try:
+            user = users.find_one(
+                {'_id': ObjectId(user_id)},
+                {'roadmap_id': 1}
+            )
+            return str(user.get('roadmap_id')) if user and 'roadmap_id' in user else None
+        except Exception as e:
+            print(f"Error fetching roadmap_id: {e}")
+            return None
+
 
 
 

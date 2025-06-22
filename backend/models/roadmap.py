@@ -4,11 +4,10 @@ from database.db import roadmaps
 
 class RoadmapModel:
     @staticmethod
-    def create_roadmap(mentee_id, mentor_id, topic, duration_weeks, modules,
+    def create_roadmap(mentee_id, mentor_id, duration_weeks, modules,
                        interview_type="progress_based", trigger_point="50%") -> dict:
         roadmap_doc = {
             "menteeId": ObjectId(mentee_id),
-            "goal": topic,
             "status": "in-progress",
             "durationWeeks": duration_weeks,
             "approvalStatus": {
@@ -79,3 +78,37 @@ class RoadmapModel:
             {"_id": 0, "interview_theme_2": 1, "goal": 1}
         )
         return result
+    
+    @staticmethod
+    def replace_roadmap_by_id(roadmap_id, updated_roadmap_data: dict):
+        try:
+            updated_roadmap_data['_id'] = ObjectId(roadmap_id)
+            updated_roadmap_data['updated_at'] = datetime.utcnow()
+
+            existing = roadmaps.find_one({"_id": ObjectId(roadmap_id)})
+            if existing and 'created_at' in existing:
+                updated_roadmap_data['created_at'] = existing['created_at']
+            else:
+                updated_roadmap_data['created_at'] = datetime.utcnow()
+
+            # Replace document
+            result = roadmaps.replace_one({"_id": ObjectId(roadmap_id)}, updated_roadmap_data)
+            return result.modified_count > 0
+
+        except Exception as e:
+            print(f"Error replacing roadmap: {e}")
+            return False
+
+    @staticmethod
+    def get_roadmap_as_dict_for_update(roadmap_id):
+        try:
+            roadmap = roadmaps.find_one({"_id": ObjectId(roadmap_id)})
+            if not roadmap:
+                return None
+
+            roadmap.pop('_id', None)
+            return roadmap
+
+        except Exception as e:
+            print(f"Error fetching roadmap: {e}")
+            return None

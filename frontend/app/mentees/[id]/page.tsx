@@ -78,7 +78,7 @@ export default function MenteeProfilePage() {
   ]
 
   return (
-    <DashboardLayout userRole="mentor">
+    <DashboardLayout userRole="mentor" userName={mentee.name} userEmail={mentee.email}>
       <div className="space-y-6">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div className="flex items-center gap-4">
