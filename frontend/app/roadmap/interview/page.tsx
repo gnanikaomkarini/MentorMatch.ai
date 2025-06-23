@@ -43,10 +43,13 @@ export default function AIInterviewPage() {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const audioChunksRef = useRef<Blob[]>([])
   const aiAudioRef = useRef<HTMLAudioElement | null>(null)
+  const historyRef = useRef<InterviewHistory[]>([])
+  const recognitionRef = useRef<SpeechRecognition | null>(null)
   
   // Error handling
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(true)
+  const [isListening, setIsListening] = useState(false)
 
   // Fetch roadmap data and interview context on mount
   useEffect(() => {
@@ -104,36 +107,52 @@ export default function AIInterviewPage() {
     fetchRoadmapData()
   }, [roadmapId, interviewNum])
 
-  // Start the interview with the first question
+  // Initialize speech recognition
+  useEffect(() => {
+    if (typeof window !== 'undefined' && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
+      recognitionRef.current = new SpeechRecognition()
+      
+      if (recognitionRef.current) {
+        recognitionRef.current.continuous = true
+        recognitionRef.current.interimResults = false
+        recognitionRef.current.lang = 'en-US'
+        
+        recognitionRef.current.onstart = () => {
+          console.log("🎤 Speech recognition started")
+          setIsListening(true)
+        }
+        
+        recognitionRef.current.onend = () => {
+          console.log("🎤 Speech recognition ended")
+          setIsListening(false)
+        }
+        
+        recognitionRef.current.onerror = (event) => {
+          console.error("❌ Speech recognition error:", event.error)
+          setIsListening(false)
+          setError("Speech recognition failed. Please try again.")
+        }
+      }
+    } else {
+      console.warn("⚠️ Speech recognition not supported in this browser")
+    }
+  }, [])
+
+  // Fix 1: Change how we send history for the first call
   const startInterview = async () => {
-    if (!roadmapId || !interviewContext) {
-      console.error("❌ Cannot start interview - missing roadmapId or interviewContext")
+    if (!roadmapId) {
       return
     }
     
     setIsProcessing(true)
     setError("")
-    
+
     try {
       const formData = new FormData()
       formData.append('roadmap_id', roadmapId)
       formData.append('interview_num', interviewNum.toString())
-      // For first call, send empty history as string "null" or empty array
-      formData.append('history', 'null')
-
-      // Log the request details
-      console.log("🚀 Starting interview API call...")
-      console.log("Request URL:", 'http://localhost:5000/api/ai/interview')
-      console.log("Request Method: POST")
-      console.log("Request Headers:", { 
-        credentials: 'include',
-        'Content-Type': 'multipart/form-data'
-      })
-      console.log("📤 Start Interview Request Body:")
-      console.log("  - roadmap_id:", roadmapId)
-      console.log("  - interview_num:", interviewNum.toString())
-      console.log("  - history:", 'null')
-      console.log("  - audio file:", "None (initial call)")
+      formData.append('history', '')
 
       const response = await fetch('http://localhost:5000/api/ai/interview', {
         method: 'POST',
@@ -141,64 +160,64 @@ export default function AIInterviewPage() {
         body: formData
       })
 
-      console.log("📥 Start Interview API Response Status:", response.status)
-      console.log("📥 Start Interview API Response Headers:", Object.fromEntries(response.headers.entries()))
-
       if (!response.ok) {
-        console.error("❌ Start Interview API Error - Response not OK")
-        const errorText = await response.text()
-        console.error("❌ Error Response Body:", errorText)
+        let errorText = ''
+        try {
+          const errorData = await response.json()
+          errorText = errorData.message || 'Unknown error from server'
+        } catch {
+          const textResponse = await response.text()
+          errorText = textResponse || 'Unknown error from server'
+        }
+        setError(errorText)
         throw new Error('Failed to start interview')
       }
 
       const data = await response.json()
-      console.log("📥 Start Interview API Response Body:", data)
       
-      // Set the first question and play audio
       setCurrentQuestion(data.next_question)
-      setAiAudioUrl(`http://localhost:5000/${data.audio_path}`)
+      setAiAudioUrl(`http://localhost:5000/ai-speech.mp3?ts=${Date.now()}&rnd=${Math.random()}`)
       setInterviewStarted(true)
       
-      // Initialize history as empty array for subsequent calls
+      // 🔥 Reset both ref and state
+      historyRef.current = []
       setHistory([])
       
-      console.log("✅ Interview started successfully")
-      console.log("🎵 AI Audio URL:", `http://localhost:5000/${data.audio_path}`)
-      console.log("❓ First Question:", data.next_question)
-      
-      // Auto-play the first question
       setTimeout(() => {
         playAIResponse()
       }, 500)
-      
+
     } catch (err) {
-      console.error("❌ Start Interview Error:", err)
       setError("Failed to start interview")
     } finally {
       setIsProcessing(false)
     }
   }
 
-  // Play AI audio response
+  // Simplified audio playback function
   const playAIResponse = () => {
-    console.log("🔊 Attempting to play AI audio response...")
-    console.log("🎵 Audio URL:", aiAudioUrl)
-    console.log("🎵 Audio Element Ready:", !!aiAudioRef.current)
-    
-    if (aiAudioRef.current && aiAudioUrl) {
-      setIsAIPlaying(true)
-      aiAudioRef.current.src = aiAudioUrl
-      aiAudioRef.current.play()
-        .then(() => {
-          console.log("✅ AI audio playing successfully")
-        })
-        .catch((err) => {
-          console.error("❌ Audio playback error:", err)
-          setIsAIPlaying(false)
-        })
-    } else {
-      console.error("❌ Cannot play audio - missing audio element or URL")
+    if (!aiAudioRef.current) {
+      console.error("❌ Audio element not found")
+      return
     }
+
+    setIsAIPlaying(true)
+    // Force reload by resetting src with a new query string
+    const uniqueUrl = `http://localhost:5000/ai-speech.mp3?ts=${Date.now()}&rnd=${Math.random()}`
+    aiAudioRef.current.src = ""
+    aiAudioRef.current.src = uniqueUrl
+    setAiAudioUrl(uniqueUrl)
+
+    aiAudioRef.current.load()
+    aiAudioRef.current.play()
+      .then(() => {
+        console.log("✅ AI audio playing successfully")
+      })
+      .catch((err) => {
+        console.error("❌ Audio playback error:", err)
+        setIsAIPlaying(false)
+        setError("Failed to play AI response")
+      })
   }
 
   // Handle AI audio events
@@ -272,10 +291,6 @@ export default function AIInterviewPage() {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
       console.log("✅ Microphone access granted")
-      console.log("🎤 Audio stream details:", {
-        active: stream.active,
-        tracks: stream.getTracks().length
-      })
       
       mediaRecorderRef.current = new MediaRecorder(stream, { mimeType: 'audio/webm' })
       audioChunksRef.current = []
@@ -289,14 +304,26 @@ export default function AIInterviewPage() {
 
       mediaRecorderRef.current.onstop = () => {
         console.log("🎤 Recording stopped")
-        console.log("🎤 Total audio chunks:", audioChunksRef.current.length)
         stream.getTracks().forEach((track) => track.stop())
+        
+        // Stop speech recognition
+        if (recognitionRef.current && isListening) {
+          recognitionRef.current.stop()
+        }
+        
         processRecording()
       }
 
+      // Start both audio recording and speech recognition
       mediaRecorderRef.current.start()
+      
+      // Start speech recognition
+      if (recognitionRef.current) {
+        recognitionRef.current.start()
+      }
+      
       setRecording(true)
-      console.log("🔴 Recording started successfully")
+      console.log("🔴 Recording and speech recognition started successfully")
     } catch (err) {
       console.error("❌ Error starting recording:", err)
       setError("Failed to start recording. Please check microphone permissions.")
@@ -316,10 +343,9 @@ export default function AIInterviewPage() {
     }
   }
 
-  // Update the processRecording function to handle history correctly
+  // Modified recording process with frontend transcript generation
   const processRecording = async () => {
     if (audioChunksRef.current.length === 0) {
-      console.error("❌ No audio recorded")
       setError("No audio recorded")
       return
     }
@@ -330,27 +356,91 @@ export default function AIInterviewPage() {
     try {
       const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' })
       
+      // Save the recorded audio locally
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
+      const fileName = `mentee-response-${roadmapId}-interview${interviewNum}-q${historyRef.current.length + 1}-${timestamp}.webm`
+      
+      // Create download link to save audio locally
+      const audioUrl = URL.createObjectURL(audioBlob)
+      const link = document.createElement('a')
+      link.href = audioUrl
+      link.download = fileName
+      link.style.display = 'none'
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      URL.revokeObjectURL(audioUrl)
+      
+      console.log(`💾 Audio saved locally as: ${fileName}`)
+      console.log(`📁 Location: User's Downloads folder`)
+      
+      // 🔥 WAIT FOR FRONTEND TRANSCRIPT
+      console.log("⏳ Waiting for speech recognition to complete...")
+      
+      // Wait for speech recognition to finish and get transcript
+      const transcript = await new Promise<string>((resolve) => {
+        if (recognitionRef.current) {
+          recognitionRef.current.onresult = (event) => {
+            let finalTranscript = ''
+            for (let i = event.resultIndex; i < event.results.length; i++) {
+              if (event.results[i].isFinal) {
+                finalTranscript += event.results[i][0].transcript
+              }
+            }
+            console.log("🎤 Frontend transcript generated:", finalTranscript)
+            resolve(finalTranscript || "No transcript generated")
+          }
+          
+          // Set a timeout in case speech recognition doesn't work
+          setTimeout(() => {
+            resolve("Transcript not available")
+          }, 2000)
+        } else {
+          resolve("Speech recognition not available")
+        }
+      })
+
+      // 🔥 UPDATE HISTORY IMMEDIATELY with frontend transcript
+      const newHistoryItem = {
+        question: currentQuestion,
+        answer: transcript
+      }
+      
+      // Update ref immediately (synchronous)
+      historyRef.current = [...historyRef.current, newHistoryItem]
+      
+      // Update state for UI
+      setHistory([...historyRef.current])
+      
+      console.log("🆕 HISTORY UPDATED BEFORE API CALL:")
+      console.log("=== HISTORY START ===")
+      historyRef.current.forEach((item, index) => {
+        console.log(`Q${index + 1}: ${item.question}`)
+        console.log(`A${index + 1}: ${item.answer}`)
+        console.log("---")
+      })
+      console.log("=== HISTORY END ===")
+      console.log("📊 Total Q&A pairs:", historyRef.current.length)
+      
+      // 🔥 NOW build history string with UPDATED history
+      let historyString = ""
+      if (historyRef.current.length > 0) {
+        const historyItems = historyRef.current.map(item =>
+          `{"question": "${item.question.replace(/"/g, '\\"')}", ` +
+          `"answer": "${item.answer.replace(/"/g, '\\"')}"}`
+        )
+        historyString = historyItems.join(",")
+      }
+
+      console.log("📝 Updated history being sent to API:", historyString)
+
       const formData = new FormData()
       formData.append('audio', audioBlob, 'response.webm')
       formData.append('roadmap_id', roadmapId!)
       formData.append('interview_num', interviewNum.toString())
-      formData.append('history', JSON.stringify(history))
+      formData.append('history', historyString)
 
-      // Detailed logging for the interview continuation
-      console.log("🎤 Processing recorded audio and sending to API...")
-      console.log("Request URL:", 'http://localhost:5000/api/ai/interview')
-      console.log("Request Method: POST")
-      console.log("Request Headers:", { 
-        credentials: 'include',
-        'Content-Type': 'multipart/form-data'
-      })
-      console.log("📤 Interview Continuation Request Body:")
-      console.log("  - roadmap_id:", roadmapId)
-      console.log("  - interview_num:", interviewNum.toString())
-      console.log("  - history:", JSON.stringify(history, null, 2))
-      console.log("  - audio file size:", audioBlob.size, "bytes")
-      console.log("  - audio file type:", audioBlob.type)
-      console.log("  - current question being answered:", currentQuestion)
+      console.log("🚀 Making POST API call with updated history...")
 
       const response = await fetch('http://localhost:5000/api/ai/interview', {
         method: 'POST',
@@ -358,66 +448,34 @@ export default function AIInterviewPage() {
         body: formData
       })
 
-      console.log("📥 Interview Continuation API Response Status:", response.status)
-      console.log("📥 Interview Continuation API Response Headers:", Object.fromEntries(response.headers.entries()))
-
       if (!response.ok) {
-        console.error("❌ Interview Continuation API Error - Response not OK")
-        const errorText = await response.text()
-        console.error("❌ Error Response Body:", errorText)
         throw new Error('Failed to process interview response')
       }
 
       const data = await response.json()
-      console.log("📥 Interview Continuation API Response Body:", data)
+      console.log("📨 API Response received:", data)
 
-      // Update history: Add the completed Q&A pair from the current exchange
-      const newHistory = [...history, {
-        question: currentQuestion,
-        answer: data.transcript
-      }]
-      setHistory(newHistory)
-
-      console.log("📝 Updated Interview History:", newHistory)
-      console.log("🎵 Next AI Audio URL:", `http://localhost:5000/${data.audio_path}`)
-      console.log("❓ Next Question:", data.next_question)
-
-      // Check if interview is ending
+      // Check if interview should end
       const isEnding = data.next_question.toLowerCase().includes("thank you") || 
                       data.next_question.toLowerCase().includes("feedback") ||
                       data.next_question.toLowerCase().includes("that concludes") ||
-                      newHistory.length >= 5
-
-      console.log("🏁 Interview ending check:", {
-        includesThankYou: data.next_question.toLowerCase().includes("thank you"),
-        includesFeedback: data.next_question.toLowerCase().includes("feedback"),
-        includesConclude: data.next_question.toLowerCase().includes("that concludes"),
-        historyLength: newHistory.length,
-        isEnding: isEnding
-      })
+                      historyRef.current.length >= 5
 
       if (isEnding) {
-        console.log("🏁 Interview is ending...")
+        console.log("🎯 Interview ending detected")
         setInterviewEnded(true)
-        setCurrentQuestion(data.next_question)
-        setAiAudioUrl(`http://localhost:5000/${data.audio_path}`)
-        // Play final message
+        setAiAudioUrl('http://localhost:5000/ai-speech.mp3')
         setTimeout(() => {
           playAIResponse()
         }, 500)
       } else {
-        console.log("▶️ Interview continuing...")
-        // Continue interview - set the next question
+        console.log("➡️ Continuing to next question")
         setCurrentQuestion(data.next_question)
-        setAiAudioUrl(`http://localhost:5000/${data.audio_path}`)
-        
-        // Auto-play next question
+        setAiAudioUrl('http://localhost:5000/ai-speech.mp3')
         setTimeout(() => {
           playAIResponse()
         }, 500)
       }
-      
-      console.log("✅ Interview response processed successfully")
       
     } catch (err) {
       console.error("❌ Process Recording Error:", err)
@@ -428,8 +486,33 @@ export default function AIInterviewPage() {
   }
 
   // End interview
-  const endInterview = () => {
-    setShowSuccess(true)
+  const endInterview = async () => {
+    try {
+      // Prepare feedback payload
+      const feedbackPayload = {
+        roadmap_id: roadmapId,
+        interview_num: interviewNum,
+        history: historyRef.current, // already in array of {question, answer}
+      }
+
+      // Send feedback to backend
+      const response = await fetch('http://localhost:5000/api/ai/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(feedbackPayload),
+      })
+
+      if (!response.ok) {
+        setError("Failed to submit interview for feedback")
+        return
+      }
+
+      // Optionally handle response data if needed
+      setShowSuccess(true)
+    } catch (err) {
+      setError("Failed to submit interview for feedback")
+    }
   }
 
   // Loading state
@@ -584,14 +667,16 @@ export default function AIInterviewPage() {
         </CardHeader>
         
         <CardContent className="space-y-6">
-          {/* Current Question Display */}
+          {/* Current Question Display - Show generic message */}
           <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
             <div className="flex items-start justify-between gap-4">
               <div className="flex-1">
                 <h4 className="font-medium text-blue-800 dark:text-blue-200 mb-2">AI Interviewer:</h4>
-                <p className="text-blue-700 dark:text-blue-300">{currentQuestion}</p>
+                <p className="text-blue-700 dark:text-blue-300">
+                  {/* Remove the question text, show only instruction */}
+                  Listen carefully to the AI interviewer's question and answer after the audio finishes.
+                </p>
               </div>
-              
               {/* Audio Controls */}
               <div className="flex items-center gap-2">
                 <Button
@@ -609,7 +694,6 @@ export default function AIInterviewPage() {
                 </Button>
               </div>
             </div>
-            
             {/* Hidden audio element */}
             <audio ref={aiAudioRef} className="hidden" />
           </div>
@@ -666,26 +750,26 @@ export default function AIInterviewPage() {
             <div className="space-y-2">
               <div className="flex justify-between text-sm">
                 <span>Questions completed</span>
-                <span>{history.length}/~5</span>
+                <span>{historyRef.current.length}/~5</span>
               </div>
               <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
                 <div 
                   className="bg-purple-600 h-2 rounded-full transition-all duration-300"
-                  style={{ width: `${Math.min((history.length / 5) * 100, 100)}%` }}
+                  style={{ width: `${Math.min((historyRef.current.length / 5) * 100, 100)}%` }}
                 ></div>
               </div>
             </div>
           </div>
         </CardContent>
-
         <CardFooter className="flex justify-between">
-          <Button
-            variant="outline"
-            onClick={() => router.push(`/roadmap?id=${roadmapId}`)}
-          >
-            Exit Interview
-          </Button>
-          
+          {!interviewEnded && (
+            <Button
+              variant="outline"
+              onClick={() => router.push(`/roadmap?id=${roadmapId}`)}
+            >
+              Exit Interview
+            </Button>
+          )}
           {interviewEnded && (
             <Button
               onClick={endInterview}
