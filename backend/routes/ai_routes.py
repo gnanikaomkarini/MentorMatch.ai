@@ -6,6 +6,7 @@ import tempfile
 from database.db import ai_learning_data
 from middleware.auth_middleware import token_required
 from services.ai_service import match_mentor_mentee, generate_roadmap, generate_interview_questions, update_roadmap
+from services.ai_service import get_feedback
 from models.user import UserModel
 from models.roadmap import RoadmapModel
 
@@ -140,24 +141,38 @@ def create_roadmap(current_user):
 
 @ai_bp.route('/interview', methods=['POST'])
 @token_required
-def interview():
+def interview(current_user):
     try:
         audio_file = request.files.get('audio')
         roadmap_id = request.form.get('roadmap_id')
         interview_num = int(request.form.get('interview_num'))
         history_json = request.form.get('history')
 
+        # Print the request body
+        print("Interview API request body:", {
+            "roadmap_id": roadmap_id,
+            "interview_num": interview_num,
+            "history": history_json,
+            "audio_file_present": audio_file is not None
+        })
+
         if interview_num == 1:
             interview = RoadmapModel.get_interview_1(roadmap_id)
-            goal = interview['goal']
             theme = interview['interview_theme_1']
+            print(f"Interview theme 1: {theme}")
         else:
             interview = RoadmapModel.get_interview_2(roadmap_id)
-            goal = interview['goal']
+            print(f"Interview theme 2: {interview}")
             theme = interview['interview_theme_2']        
 
-        if not roadmap_id or not history_json or not goal or not theme:
-            return jsonify({'message': 'roadmap_id, history, goal and theme are required'}), 400
+        if not roadmap_id:
+            error_payload = {'message': 'roadmap_id  required'}
+            print("Interview API response:", error_payload)
+            return jsonify(error_payload), 400
+        if not theme:
+            error_payload = {'message': 'theme is required'}
+            print("Interview API response:", error_payload)
+            return jsonify(error_payload), 400
 
         if audio_file is not None:
             with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as tmp_audio:
@@ -166,7 +181,7 @@ def interview():
         else:
             audio_path = None
 
-        user_answer, next_question = generate_interview_questions(audio_path, history_json, goal, theme)
+        user_answer, next_question = generate_interview_questions(audio_path, history_json, None, theme)
 
         response_payload = {
             "transcript": user_answer,
@@ -174,38 +189,42 @@ def interview():
             "audio_path": 'ai-speech.mp3'
         }
 
+        print("Interview API response:", response_payload)
         return jsonify(response_payload), 200
 
     except Exception as e:
-        return jsonify({'message': f'Error during interview: {str(e)}'}), 500
+        error_payload = {'message': f'Error during interview: {str(e)}'}
+        print("Interview API response:", error_payload)
+        return jsonify(error_payload), 500
 
 
-# @ai_bp.route('/feedback', methods=['POST'])
-# @token_required
-# def submit_feedback(current_user):
-#     data = request.get_json()
-    
-#     ai_type = data.get('type')  # 'matching', 'roadmap', 'interview'
-#     content_id = data.get('content_id')
-#     rating = data.get('rating')
-#     feedback = data.get('feedback')
-    
-#     if not ai_type or not content_id or rating is None:
-#         return jsonify({'message': 'Type, content ID, and rating are required'}), 400
-    
-#     try:
-#         # Log the feedback for AI learning
-#         feedback_data = {
-#             'type': f'{ai_type}_feedback',
-#             'user_id': str(current_user['_id']),
-#             'content_id': content_id,
-#             'rating': rating,
-#             'feedback': feedback,
-#             'timestamp': datetime.datetime.utcnow()
-#         }
+@ai_bp.route('/feedback', methods=['POST'])
+@token_required
+def submit_feedback(current_user):
+    try:
+        data = request.get_json()
+        print("Feedback API request body:", data)  # Print the incoming request body
+
+        roadmap_id = data.get('roadmap_id')
+        interview_num = int(data.get('interview_num'))
+        history_json = str(data.get('history'))
+
+        feedback = get_feedback(history_json)
+        print("Feedback generated:", feedback)  # Print the generated feedback
+
+        if interview_num == 1:
+            RoadmapModel.set_feedback_interview_1(roadmap_id, feedback)
+        else:
+            RoadmapModel.set_feedback_interview_2(roadmap_id, feedback)
         
-#         ai_learning_data.insert_one(feedback_data)
-        
-#         return jsonify({'message': 'Feedback submitted successfully'}), 200
-#     except:
-#         return jsonify({'message': 'Error submitting feedback'}), 500
+        response_payload = {
+            'message': 'Feedback added successfully',
+            'feedback': feedback
+        }
+        print("Feedback API response:", response_payload)  # Print the response payload
+        return jsonify(response_payload)
+
+    except Exception as e:
+        error_payload = {'message': f'Error during feedback: {str(e)}'}
+        print("Feedback API response:", error_payload)  # Print error response
+        return jsonify(error_payload), 500

@@ -1,4 +1,4 @@
-from flask import Flask, jsonify
+from flask import Flask, jsonify, send_from_directory
 from flask_cors import CORS
 from dotenv import load_dotenv
 import os
@@ -36,6 +36,12 @@ app.register_blueprint(dashboard_bp, url_prefix='/api/dashboard')
 @app.route('/')
 def index():
     return jsonify({"message": "Welcome to MentorMatch.ai API"})
+
+# Add route to serve audio files
+@app.route('/ai-speech.mp3')
+def serve_audio():
+    # Adjust the path if your ai-speech.mp3 is saved elsewhere
+    return send_from_directory('.', 'ai-speech.mp3')
 
 if __name__ == '__main__':
     app.run(debug=os.environ.get('FLASK_DEBUG', 'True') == 'True')

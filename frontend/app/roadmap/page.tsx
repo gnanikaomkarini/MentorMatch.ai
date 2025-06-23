@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Textarea } from "@/components/ui/textarea"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { CheckCircle, ChevronDown, ChevronRight, ExternalLink, MessageSquare, AlertCircle, Check, Lock } from "lucide-react"
+import { CheckCircle, ChevronDown, ChevronRight, ExternalLink, MessageSquare, AlertCircle, Check, Lock, XCircle } from "lucide-react"
 import DashboardLayout from "@/components/dashboard-layout"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
@@ -49,6 +49,8 @@ interface RoadmapData {
     status: string
     comments: string
   }
+  interview_feedback_1?: string
+  interview_feedback_2?: string
 }
 
 export default function RoadmapPage() {
@@ -112,6 +114,19 @@ export default function RoadmapPage() {
 
     fetchRoadmap()
   }, [roadmapId])
+
+  // --- FEEDBACK HELPERS: Place these BEFORE return! ---
+  const hasInterviewFeedback = (interviewNum: 1 | 2) => {
+    if (!roadmapData) return false
+    return Boolean(
+      interviewNum === 1 ? roadmapData.interview_feedback_1 : roadmapData.interview_feedback_2
+    )
+  }
+  const getInterviewFeedback = (interviewNum: 1 | 2) => {
+    if (!roadmapData) return ""
+    return interviewNum === 1 ? roadmapData.interview_feedback_1 : roadmapData.interview_feedback_2
+  }
+  // ----------------------------------------------------
 
   const toggleModule = (index: number) => {
     // Only allow expansion if module is accessible
@@ -856,31 +871,56 @@ export default function RoadmapPage() {
 
                     {/* Interview Buttons with Enhanced Tooltips */}
                     {isInterviewModule && (
-                      <div className="mt-4 flex justify-end">
+                      <div className="mt-4 flex flex-col md:flex-row md:items-center md:justify-end gap-2">
                         {userRole === "mentee" ? (
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <div>
-                                <Button
-                                  className="bg-purple-600 hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                                  onClick={() => {
-                                    const interviewNum = moduleIndex === Math.ceil(roadmapData.modules.length / 2) - 1 ? 1 : 2
-                                    router.push(`/roadmap/interview?moduleId=${moduleIndex}&roadmapId=${roadmapId}&interviewNum=${interviewNum}`)
-                                  }}
-                                  disabled={!canTakeInterview(moduleIndex === Math.ceil(roadmapData.modules.length / 2) - 1 ? 1 : 2)}
-                                >
-                                  Take Interview {moduleIndex === Math.ceil(roadmapData.modules.length / 2) - 1 ? 1 : 2}
-                                </Button>
+                          <>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <div>
+                                  <Button
+                                    className="bg-purple-600 hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    onClick={() => {
+                                      const interviewNum = moduleIndex === Math.ceil(roadmapData.modules.length / 2) - 1 ? 1 : 2
+                                      router.push(`/roadmap/interview?moduleId=${moduleIndex}&roadmapId=${roadmapId}&interviewNum=${interviewNum}`)
+                                    }}
+                                    disabled={
+                                      !canTakeInterview(moduleIndex === Math.ceil(roadmapData.modules.length / 2) - 1 ? 1 : 2) ||
+                                      hasInterviewFeedback(moduleIndex === Math.ceil(roadmapData.modules.length / 2) - 1 ? 1 : 2)
+                                    }
+                                  >
+                                    Take Interview {moduleIndex === Math.ceil(roadmapData.modules.length / 2) - 1 ? 1 : 2}
+                                  </Button>
+                                </div>
+                              </TooltipTrigger>
+                              <TooltipContent side="top" className="max-w-xs text-center">
+                                <p>{getInterviewTooltip(moduleIndex === Math.ceil(roadmapData.modules.length / 2) - 1 ? 1 : 2)}</p>
+                              </TooltipContent>
+                            </Tooltip>
+                            {/* Show message if feedback exists */}
+                            {hasInterviewFeedback(moduleIndex === Math.ceil(roadmapData.modules.length / 2) - 1 ? 1 : 2) && (
+                              <div className="text-sm text-blue-700 dark:text-blue-300 mt-2">
+                                Interview completed. Please reach out to your mentor for feedback.
                               </div>
-                            </TooltipTrigger>
-                            <TooltipContent side="top" className="max-w-xs text-center">
-                              <p>{getInterviewTooltip(moduleIndex === Math.ceil(roadmapData.modules.length / 2) - 1 ? 1 : 2)}</p>
-                            </TooltipContent>
-                          </Tooltip>
+                            )}
+                          </>
                         ) : (
-                          // Mentor view remains the same
                           <div className="space-y-2">
+                            {/* Mentor: Show feedback if available */}
+                            {moduleIndex === Math.ceil(roadmapData.modules.length / 2) - 1 && roadmapData.interview_theme_1 && hasInterviewFeedback(1) && (
+                              <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-3 mb-2">
+                                <div className="font-semibold text-green-800 dark:text-green-200 mb-1">AI Interview 1 Feedback:</div>
+                                <div className="text-sm text-green-900 dark:text-green-100 whitespace-pre-line">{getInterviewFeedback(1)}</div>
+                              </div>
+                            )}
+                            {moduleIndex === roadmapData.modules.length - 1 && roadmapData.interview_theme_2 && hasInterviewFeedback(2) && (
+                              <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-3 mb-2">
+                                <div className="font-semibold text-green-800 dark:text-green-200 mb-1">AI Interview 2 Feedback:</div>
+                                <div className="text-sm text-green-900 dark:text-green-100 whitespace-pre-line">{getInterviewFeedback(2)}</div>
+                              </div>
+                            )}
+                            {/* ...existing mentor context set UI... */}
                             {moduleIndex === Math.ceil(roadmapData.modules.length / 2) - 1 && !roadmapData.interview_theme_1 && (
+                              // ...existing Dialog for Interview 1...
                               <Dialog open={isDialogOpen && selectedInterview === 1} onOpenChange={(open) => {
                                 setIsDialogOpen(open)
                                 if (open) setSelectedInterview(1)
@@ -912,8 +952,8 @@ export default function RoadmapPage() {
                                 </DialogContent>
                               </Dialog>
                             )}
-                            
                             {moduleIndex === roadmapData.modules.length - 1 && !roadmapData.interview_theme_2 && (
+                              // ...existing Dialog for Interview 2...
                               <Dialog open={isDialogOpen && selectedInterview === 2} onOpenChange={(open) => {
                                 setIsDialogOpen(open)
                                 if (open) setSelectedInterview(2)
@@ -945,7 +985,6 @@ export default function RoadmapPage() {
                                 </DialogContent>
                               </Dialog>
                             )}
-
                             {/* Show context set confirmation */}
                             {moduleIndex === Math.ceil(roadmapData.modules.length / 2) - 1 && roadmapData.interview_theme_1 && (
                               <p className="text-sm text-green-600">✓ Interview 1 context set</p>

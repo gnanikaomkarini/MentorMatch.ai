@@ -135,11 +135,17 @@ export default function MentorDashboard() {
                       <MessageSquare className="mr-2 h-4 w-4" /> Chat with Mentee
                     </Button>
                   </Link>
-                  <Link href={`/roadmap?id=${mentee.roadmap_id}`}>
-                    <Button variant="outline" size="sm">
-                      <BarChart className="mr-2 h-4 w-4" /> View Full Roadmap
-                    </Button>
-                  </Link>
+                  {mentee.roadmap_id ? (
+                    <Link href={`/roadmap?id=${mentee.roadmap_id}`}>
+                      <Button variant="outline" size="sm">
+                        <BarChart className="mr-2 h-4 w-4" /> View Full Roadmap
+                      </Button>
+                    </Link>
+                  ) : (
+                    <div className="text-xs text-gray-500 px-2 py-1">
+                      Roadmap not created yet. Go to chat to discuss and create.
+                    </div>
+                  )}
                   <Link
                     href={{
                       pathname: "/schedule",

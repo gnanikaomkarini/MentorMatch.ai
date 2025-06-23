@@ -37,3 +37,19 @@ Goal of the mentee giving the interviw is to learn: {goal}.
 
     response = llm.invoke(messages)
     return response.content
+
+def fetch_feedback(history):
+    llm = GeminiLLM(api_key=os.getenv("GEMINI_API_KEY"))
+    messages = []
+    system_prompt = f"""
+    You are a professional AI interviewer. Given the history of questions you have asked 
+    and the corresponding answers given by the candidate. Give candid feeback about the candidate
+    and focus on their strengths and weaknesses. Return ONLY the feedback and nothing else.
+    """
+    messages.append({"role": "system", "content": system_prompt.strip()})
+    messages.append({"role": "user", "content": "Here's the conversation so far:"})
+
+    messages.append({"role": "user", "content": history})
+
+    response = llm.invoke(messages)
+    return response.content

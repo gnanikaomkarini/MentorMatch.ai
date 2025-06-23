@@ -4,206 +4,562 @@ import { useState, useEffect, useRef } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Volume2, Mic, RotateCcw, Check, Loader2 } from "lucide-react"
+import { Volume2, Mic, RotateCcw, Check, Loader2, Play, Pause } from "lucide-react"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 
-// Mock questions data (replace with API call)
-const mockQuestions: { [key: number]: { id: number; text: string; audioUrl: string }[] } = {
-  3: [
-    { id: 1, text: "Explain the concept of state in React.", audioUrl: "/mock-audio/react-state.mp3" },
-    { id: 2, text: "What is the difference between props and state?", audioUrl: "/mock-audio/props-vs-state.mp3" },
-    { id: 3, text: "How do you handle side effects in React?", audioUrl: "/mock-audio/react-side-effects.mp3" },
-  ],
-  7: [
-    { id: 1, text: "What is CI/CD and why is it important?", audioUrl: "/mock-audio/ci-cd.mp3" },
-    { id: 2, text: "Explain how Docker containers work.", audioUrl: "/mock-audio/docker.mp3" },
-    { id: 3, text: "Describe the process of deploying an application to AWS.", audioUrl: "/mock-audio/aws-deployment.mp3" },
-  ],
+interface InterviewHistory {
+  question: string
+  answer: string
 }
 
-export default function InterviewPage() {
+export default function AIInterviewPage() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const moduleId = parseInt(searchParams.get("moduleId") || "0")
+  const roadmapId = searchParams.get("roadmapId")
+  const interviewNum = parseInt(searchParams.get("interviewNum") || "1")
+  
+  // Interview state
   const [showInstructions, setShowInstructions] = useState(true)
   const [showSuccess, setShowSuccess] = useState(false)
-  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
-  const [questions, setQuestions] = useState(mockQuestions[moduleId] || [])
-  const [answers, setAnswers] = useState<{ questionId: number; audioBlob: Blob | null; transcript: string; attempts: number }[]>(
-    questions.map((q) => ({ questionId: q.id, audioBlob: null, transcript: "", attempts: 0 }))
-  )
+  const [interviewStarted, setInterviewStarted] = useState(false)
+  const [interviewEnded, setInterviewEnded] = useState(false)
+  
+  // Current question and response
+  const [currentQuestion, setCurrentQuestion] = useState("")
+  const [isAIPlaying, setIsAIPlaying] = useState(false)
+  const [aiAudioUrl, setAiAudioUrl] = useState<string | null>(null)
+  
+  // Recording state
   const [recording, setRecording] = useState(false)
   const [countdown, setCountdown] = useState<number | null>(null)
-  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isProcessing, setIsProcessing] = useState(false)
+  
+  // Interview history and context
+  const [history, setHistory] = useState<InterviewHistory[]>([])
+  const [interviewContext, setInterviewContext] = useState("")
+  
+  // Refs
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const audioChunksRef = useRef<Blob[]>([])
+  const aiAudioRef = useRef<HTMLAudioElement | null>(null)
+  const historyRef = useRef<InterviewHistory[]>([])
   const recognitionRef = useRef<SpeechRecognition | null>(null)
-  const audioRef = useRef<HTMLAudioElement | null>(null)
+  
+  // Error handling
+  const [error, setError] = useState("")
+  const [loading, setLoading] = useState(true)
+  const [isListening, setIsListening] = useState(false)
 
-  // Initialize SpeechRecognition
+  // Fetch roadmap data and interview context on mount
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const SpeechRecognition = window.SpeechRecognition || (window as any).webkitSpeechRecognition
-      if (SpeechRecognition) {
-        const recognition = new SpeechRecognition()
-        recognition.continuous = true
-        recognition.interimResults = true
-        recognition.onresult = (event: SpeechRecognitionEvent) => {
-          const transcript = Array.from(event.results as SpeechRecognitionResultList)
-            .map((result: SpeechRecognitionResult) => result[0].transcript)
-            .join("")
-          setAnswers((prev) =>
-            prev.map((ans, i) =>
-              i === currentQuestionIndex ? { ...ans, transcript } : ans
-            )
-          )
+    const fetchRoadmapData = async () => {
+      if (!roadmapId) {
+        setError("No roadmap ID provided")
+        setLoading(false)
+        return
+      }
+
+      console.log("🔍 Fetching roadmap data...")
+      console.log("Request URL:", `http://localhost:5000/api/roadmaps/${roadmapId}`)
+      console.log("Request Method: GET")
+      console.log("Request Headers:", { credentials: "include" })
+
+      try {
+        const response = await fetch(`http://localhost:5000/api/roadmaps/${roadmapId}`, {
+          credentials: "include",
+        })
+        
+        console.log("📥 Roadmap API Response Status:", response.status)
+        console.log("📥 Roadmap API Response Headers:", Object.fromEntries(response.headers.entries()))
+        
+        if (!response.ok) {
+          console.error("❌ Roadmap API Error - Response not OK")
+          throw new Error("Failed to fetch roadmap data")
         }
-        recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
-          console.error("Speech recognition error:", event.error)
+        
+        const roadmapData = await response.json()
+        console.log("📥 Roadmap API Response Body:", roadmapData)
+        
+        const context = interviewNum === 1 
+          ? roadmapData.interview_theme_1 
+          : roadmapData.interview_theme_2
+          
+        console.log("🎯 Interview Context Retrieved:", context)
+        
+        if (!context) {
+          console.error(`❌ Interview ${interviewNum} context not found in roadmap data`)
+          setError(`Interview ${interviewNum} context not set by mentor`)
+          setLoading(false)
+          return
         }
-        recognitionRef.current = recognition
+        
+        setInterviewContext(context)
+        console.log("✅ Roadmap data fetched successfully")
+      } catch (err) {
+        console.error("❌ Roadmap API Error:", err)
+        setError("Failed to load interview data")
+      } finally {
+        setLoading(false)
       }
     }
-  }, [currentQuestionIndex])
 
-  // Fetch questions (mocked for now)
-  useEffect(() => {
-    console.log(`Fetching questions for moduleId: ${moduleId}`)
-  }, [moduleId])
+    fetchRoadmapData()
+  }, [roadmapId, interviewNum])
 
-  // Play question audio automatically
+  // Initialize speech recognition
   useEffect(() => {
-    if (questions[currentQuestionIndex] && audioRef.current) {
-      audioRef.current.src = questions[currentQuestionIndex].audioUrl
-      audioRef.current.play().catch((err) => console.error("Audio playback error:", err))
+    if (typeof window !== 'undefined' && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
+      recognitionRef.current = new SpeechRecognition()
+      
+      if (recognitionRef.current) {
+        recognitionRef.current.continuous = true
+        recognitionRef.current.interimResults = false
+        recognitionRef.current.lang = 'en-US'
+        
+        recognitionRef.current.onstart = () => {
+          console.log("🎤 Speech recognition started")
+          setIsListening(true)
+        }
+        
+        recognitionRef.current.onend = () => {
+          console.log("🎤 Speech recognition ended")
+          setIsListening(false)
+        }
+        
+        recognitionRef.current.onerror = (event) => {
+          console.error("❌ Speech recognition error:", event.error)
+          setIsListening(false)
+          setError("Speech recognition failed. Please try again.")
+        }
+      }
+    } else {
+      console.warn("⚠️ Speech recognition not supported in this browser")
     }
-  }, [currentQuestionIndex, questions])
+  }, [])
 
-  const startRecording = async () => {
-    if (answers[currentQuestionIndex].attempts >= 3) {
-      alert("Maximum recording attempts reached.")
+  // Fix 1: Change how we send history for the first call
+  const startInterview = async () => {
+    if (!roadmapId) {
+      return
+    }
+    
+    setIsProcessing(true)
+    setError("")
+
+    try {
+      const formData = new FormData()
+      formData.append('roadmap_id', roadmapId)
+      formData.append('interview_num', interviewNum.toString())
+      formData.append('history', '')
+
+      // Print request body
+      console.log("[startInterview] Request Body:")
+      for (let [key, value] of formData.entries()) {
+        console.log(`  ${key}:`, value)
+      }
+
+      const response = await fetch('http://localhost:5000/api/ai/interview', {
+        method: 'POST',
+        credentials: 'include',
+        body: formData
+      })
+
+      // Print response body (success or error)
+      let responseBody
+      try {
+        responseBody = await response.clone().json()
+        console.log("[startInterview] Response JSON:", responseBody)
+      } catch {
+        responseBody = await response.text()
+        console.log("[startInterview] Response Text:", responseBody)
+      }
+
+      if (!response.ok) {
+        let errorText = ''
+        if (typeof responseBody === "string") {
+          errorText = responseBody
+        } else {
+          errorText = responseBody?.message || 'Unknown error from server'
+        }
+        setError(errorText)
+        throw new Error('Failed to start interview')
+      }
+
+      setCurrentQuestion(responseBody.next_question)
+      setAiAudioUrl(`http://localhost:5000/ai-speech.mp3?ts=${Date.now()}&rnd=${Math.random()}`)
+      setInterviewStarted(true)
+      historyRef.current = []
+      setHistory([])
+      setTimeout(() => {
+        playAIResponse()
+      }, 500)
+    } catch (err) {
+      setError("Failed to start interview")
+    } finally {
+      setIsProcessing(false)
+    }
+  }
+
+  // Simplified audio playback function
+  const playAIResponse = () => {
+    if (!aiAudioRef.current) {
+      console.error("❌ Audio element not found")
       return
     }
 
+    setIsAIPlaying(true)
+    // Force reload by resetting src with a new query string
+    const uniqueUrl = `http://localhost:5000/ai-speech.mp3?ts=${Date.now()}&rnd=${Math.random()}`
+    aiAudioRef.current.src = ""
+    aiAudioRef.current.src = uniqueUrl
+    setAiAudioUrl(uniqueUrl)
+
+    aiAudioRef.current.load()
+    aiAudioRef.current.play()
+      .then(() => {
+        console.log("✅ AI audio playing successfully")
+      })
+      .catch((err) => {
+        console.error("❌ Audio playback error:", err)
+        setIsAIPlaying(false)
+        setError("Failed to play AI response")
+      })
+  }
+
+  // Handle AI audio events
+  useEffect(() => {
+    const audioElement = aiAudioRef.current
+    if (!audioElement) return
+
+    const handleAudioEnd = () => {
+      console.log("🔇 AI audio playback ended")
+      setIsAIPlaying(false)
+    }
+
+    const handleAudioError = () => {
+      console.error("❌ AI audio playback error")
+      setIsAIPlaying(false)
+      setError("Failed to play AI response")
+    }
+
+    const handleAudioLoadStart = () => {
+      console.log("📥 AI audio loading started")
+    }
+
+    const handleAudioCanPlay = () => {
+      console.log("✅ AI audio can play")
+    }
+
+    audioElement.addEventListener('ended', handleAudioEnd)
+    audioElement.addEventListener('error', handleAudioError)
+    audioElement.addEventListener('loadstart', handleAudioLoadStart)
+    audioElement.addEventListener('canplay', handleAudioCanPlay)
+
+    return () => {
+      audioElement.removeEventListener('ended', handleAudioEnd)
+      audioElement.removeEventListener('error', handleAudioError)
+      audioElement.removeEventListener('loadstart', handleAudioLoadStart)
+      audioElement.removeEventListener('canplay', handleAudioCanPlay)
+    }
+  }, [aiAudioUrl])
+
+  // Start recording with countdown
+  const startRecording = async () => {
+    console.log("🎤 Initiating recording process...")
+    
+    if (isAIPlaying) {
+      console.warn("⚠️ Cannot start recording - AI is still speaking")
+      setError("Wait for AI to finish speaking")
+      return
+    }
+
+    console.log("⏰ Starting 3-second countdown...")
     // Start 3-second countdown
     setCountdown(3)
     let count = 3
     const interval = setInterval(() => {
       count--
+      console.log(`⏰ Countdown: ${count}`)
       setCountdown(count)
       if (count === 0) {
         clearInterval(interval)
         setCountdown(null)
+        console.log("🎤 Countdown finished, starting recording...")
         initiateRecording()
       }
     }, 1000)
   }
 
+  // Actually start recording
   const initiateRecording = async () => {
+    console.log("🎤 Requesting microphone access...")
+    
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-      mediaRecorderRef.current = new MediaRecorder(stream)
+      console.log("✅ Microphone access granted")
+      
+      mediaRecorderRef.current = new MediaRecorder(stream, { mimeType: 'audio/webm' })
       audioChunksRef.current = []
 
       mediaRecorderRef.current.ondataavailable = (event) => {
-        audioChunksRef.current.push(event.data)
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data)
+          console.log("🎤 Audio chunk received:", event.data.size, "bytes")
+        }
       }
 
       mediaRecorderRef.current.onstop = () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: "audio/webm" })
-        setAnswers((prev) =>
-          prev.map((ans, i) =>
-            i === currentQuestionIndex
-              ? { ...ans, audioBlob, attempts: ans.attempts + 1 }
-              : ans
-          )
-        )
+        console.log("🎤 Recording stopped")
         stream.getTracks().forEach((track) => track.stop())
+        
+        // Stop speech recognition
+        if (recognitionRef.current && isListening) {
+          recognitionRef.current.stop()
+        }
+        
+        processRecording()
       }
 
+      // Start both audio recording and speech recognition
       mediaRecorderRef.current.start()
+      
+      // Start speech recognition
       if (recognitionRef.current) {
         recognitionRef.current.start()
-      } else {
-        console.warn("Speech recognition is not available. Transcript will be empty.")
       }
+      
       setRecording(true)
+      console.log("🔴 Recording and speech recognition started successfully")
     } catch (err) {
-      console.error("Error starting recording:", err)
-      alert("Failed to start recording. Please check microphone permissions.")
+      console.error("❌ Error starting recording:", err)
+      setError("Failed to start recording. Please check microphone permissions.")
     }
   }
 
+  // Stop recording
   const stopRecording = () => {
+    console.log("⏹️ Stopping recording...")
+    
     if (mediaRecorderRef.current && recording) {
       mediaRecorderRef.current.stop()
-      if (recognitionRef.current) {
-        recognitionRef.current.stop()
-      }
       setRecording(false)
+      console.log("⏹️ Recording stop command sent")
+    } else {
+      console.warn("⚠️ No active recording to stop")
     }
   }
 
-  const recordAgain = () => {
-    if (answers[currentQuestionIndex].attempts >= 3) {
-      alert("Maximum recording attempts reached.")
+  // Modified recording process with frontend transcript generation
+  const processRecording = async () => {
+    if (audioChunksRef.current.length === 0) {
+      setError("No audio recorded")
       return
     }
-    setAnswers((prev) =>
-      prev.map((ans, i) =>
-        i === currentQuestionIndex ? { ...ans, audioBlob: null, transcript: "" } : ans
-      )
-    )
-    startRecording()
-  }
 
-  const nextQuestion = () => {
-    if (currentQuestionIndex < questions.length - 1) {
-      setCurrentQuestionIndex(currentQuestionIndex + 1)
+    setIsProcessing(true)
+    setError("")
+
+    try {
+      const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' })
+      
+      // Save the recorded audio locally
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
+      const fileName = `mentee-response-${roadmapId}-interview${interviewNum}-q${historyRef.current.length + 1}-${timestamp}.webm`
+      
+      // Create download link to save audio locally
+      const audioUrl = URL.createObjectURL(audioBlob)
+      const link = document.createElement('a')
+      link.href = audioUrl
+      link.download = fileName
+      link.style.display = 'none'
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      URL.revokeObjectURL(audioUrl)
+      
+      console.log(`💾 Audio saved locally as: ${fileName}`)
+      console.log(`📁 Location: User's Downloads folder`)
+      
+      // 🔥 WAIT FOR FRONTEND TRANSCRIPT
+      console.log("⏳ Waiting for speech recognition to complete...")
+      
+      // Wait for speech recognition to finish and get transcript
+      const transcript = await new Promise<string>((resolve) => {
+        if (recognitionRef.current) {
+          recognitionRef.current.onresult = (event) => {
+            let finalTranscript = ''
+            for (let i = event.resultIndex; i < event.results.length; i++) {
+              if (event.results[i].isFinal) {
+                finalTranscript += event.results[i][0].transcript
+              }
+            }
+            console.log("🎤 Frontend transcript generated:", finalTranscript)
+            resolve(finalTranscript || "No transcript generated")
+          }
+          
+          // Set a timeout in case speech recognition doesn't work
+          setTimeout(() => {
+            resolve("Transcript not available")
+          }, 2000)
+        } else {
+          resolve("Speech recognition not available")
+        }
+      })
+
+      // 🔥 UPDATE HISTORY IMMEDIATELY with frontend transcript
+      const newHistoryItem = {
+        question: currentQuestion,
+        answer: transcript
+      }
+      
+      // Update ref immediately (synchronous)
+      historyRef.current = [...historyRef.current, newHistoryItem]
+      
+      // Update state for UI
+      setHistory([...historyRef.current])
+      
+      console.log("🆕 HISTORY UPDATED BEFORE API CALL:")
+      console.log("=== HISTORY START ===")
+      historyRef.current.forEach((item, index) => {
+        console.log(`Q${index + 1}: ${item.question}`)
+        console.log(`A${index + 1}: ${item.answer}`)
+        console.log("---")
+      })
+      console.log("=== HISTORY END ===")
+      console.log("📊 Total Q&A pairs:", historyRef.current.length)
+      
+      // 🔥 NOW build history string with UPDATED history
+      let historyString = ""
+      if (historyRef.current.length > 0) {
+        const historyItems = historyRef.current.map(item =>
+          `{"question": "${item.question.replace(/"/g, '\\"')}", ` +
+          `"answer": "${item.answer.replace(/"/g, '\\"')}"}`
+        )
+        historyString = historyItems.join(",")
+      }
+
+      console.log("📝 Updated history being sent to API:", historyString)
+
+      const formData = new FormData()
+      formData.append('audio', audioBlob, 'response.webm')
+      formData.append('roadmap_id', roadmapId!)
+      formData.append('interview_num', interviewNum.toString())
+      formData.append('history', historyString)
+
+      console.log("[processRecording] Request Body:")
+      for (let [key, value] of formData.entries()) {
+        console.log(`  ${key}:`, value)
+      }
+
+      const response = await fetch('http://localhost:5000/api/ai/interview', {
+        method: 'POST',
+        credentials: 'include',
+        body: formData
+      })
+
+      // Print response body (success or error)
+      let responseBody
+      try {
+        responseBody = await response.clone().json()
+        console.log("[processRecording] Response JSON:", responseBody)
+      } catch {
+        responseBody = await response.text()
+        console.log("[processRecording] Response Text:", responseBody)
+      }
+
+      if (!response.ok) {
+        throw new Error('Failed to process interview response')
+      }
+
+      const data = await response.json()
+      console.log("📨 API Response received:", data)
+
+      // Check if interview should end
+      const isEnding = data.next_question.toLowerCase().includes("thank you") || 
+                      data.next_question.toLowerCase().includes("feedback") ||
+                      data.next_question.toLowerCase().includes("that concludes") ||
+                      historyRef.current.length >= 5
+
+      if (isEnding) {
+        console.log("🎯 Interview ending detected")
+        setInterviewEnded(true)
+        setAiAudioUrl('http://localhost:5000/ai-speech.mp3')
+        setTimeout(() => {
+          playAIResponse()
+        }, 500)
+      } else {
+        console.log("➡️ Continuing to next question")
+        setCurrentQuestion(data.next_question)
+        setAiAudioUrl('http://localhost:5000/ai-speech.mp3')
+        setTimeout(() => {
+          playAIResponse()
+        }, 500)
+      }
+      
+    } catch (err) {
+      console.error("❌ Process Recording Error:", err)
+      setError("Failed to process your response. Please try again.")
+    } finally {
+      setIsProcessing(false)
     }
   }
 
-  const submitInterview = async () => {
-    setIsSubmitting(true)
-    console.log("Submitting answers:", answers)
-    setIsSubmitting(false)
-    setShowSuccess(true)
+  // End interview and send feedback to backend
+  const endInterview = async () => {
+    setIsProcessing(true)
+    setError("")
+    try {
+      const feedbackPayload = {
+        roadmap_id: roadmapId,
+        interview_num: interviewNum,
+        history: historyRef.current, // already in array of {question, answer}
+      }
+      const response = await fetch('http://localhost:5000/api/ai/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(feedbackPayload),
+      })
+      if (!response.ok) {
+        setError("Failed to submit interview for feedback")
+        return
+      }
+      setShowSuccess(true)
+    } catch (err) {
+      setError("Failed to submit interview for feedback")
+    } finally {
+      setIsProcessing(false)
+    }
   }
 
-  if (showSuccess) {
+  // Loading state
+  if (loading) {
     return (
       <div className="min-h-screen bg-gray-100 dark:bg-gray-900 p-4 flex items-center justify-center">
         <Card className="max-w-2xl mx-auto">
-          <CardHeader>
-            <CardTitle>Interview Submitted Successfully</CardTitle>
-            <CardDescription>Your responses have been recorded</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-gray-500 dark:text-gray-400">
-              Thank you for completing the interview for Module {moduleId}. Your answers have been submitted and will be reviewed.
-            </p>
+          <CardContent className="flex items-center justify-center py-8">
+            <Loader2 className="h-8 w-8 animate-spin mr-3" />
+            <span>Loading interview...</span>
           </CardContent>
-          <CardFooter>
-            <Button
-              onClick={() => router.push("/roadmap")}
-              className="bg-purple-600 hover:bg-purple-700"
-            >
-              Back to Roadmap
-            </Button>
-          </CardFooter>
         </Card>
       </div>
     )
   }
 
-  if (!moduleId || !questions.length) {
+  // Error state
+  if (error && !interviewStarted) {
     return (
       <div className="min-h-screen bg-gray-100 dark:bg-gray-900 p-4 flex items-center justify-center">
-        <Card>
+        <Card className="max-w-2xl mx-auto">
           <CardHeader>
-            <CardTitle>Invalid Interview</CardTitle>
+            <CardTitle>Interview Error</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-gray-500 dark:text-gray-400">Invalid module selected. Please return to the roadmap.</p>
+            <Alert variant="destructive">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
           </CardContent>
           <CardFooter>
             <Button onClick={() => router.push("/roadmap")} className="bg-purple-600 hover:bg-purple-700">
@@ -215,38 +571,39 @@ export default function InterviewPage() {
     )
   }
 
-  if (showInstructions) {
+  // Success state
+  if (showSuccess) {
     return (
       <div className="min-h-screen bg-gray-100 dark:bg-gray-900 p-4 flex items-center justify-center">
         <Card className="max-w-2xl mx-auto">
           <CardHeader>
-            <CardTitle>Interview Instructions</CardTitle>
-            <CardDescription>Prepare for your module interview</CardDescription>
+            <CardTitle>Interview Completed Successfully</CardTitle>
+            <CardDescription>Your AI interview has been recorded</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <p>Welcome to the interview for Module {moduleId}!</p>
-            <ul className="list-disc pl-5 space-y-2">
-              <li>You will answer 3 questions related to the module.</li>
-              <li>Each question will be played as audio and displayed as text.</li>
-              <li>Record your answer using the microphone (a 3-second countdown will precede recording).</li>
-              <li>You have up to 3 attempts to record each answer.</li>
-              <li>Your speech will be converted to text for review (if supported by your browser).</li>
-              <li>Click "Done Recording" to confirm your answer and move to the next question.</li>
-              <li>After answering all questions, submit your responses.</li>
-              <li>Ensure your microphone is enabled and your browser supports speech recognition.</li>
-            </ul>
-            {!(window.SpeechRecognition || (window as any).webkitSpeechRecognition) && (
-              <p className="text-red-500">
-                Speech recognition is not supported in your browser. You can still record audio answers, but transcripts will not be generated. Use Chrome or Edge for full functionality.
+          <CardContent>
+            <div className="space-y-4">
+              <p className="text-gray-600 dark:text-gray-400">
+                Thank you for completing Interview {interviewNum} for Module {moduleId + 1}. 
+                Your responses have been recorded and will be reviewed by your mentor.
               </p>
-            )}
+              
+              {/* Show interview summary */}
+              <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
+                <h4 className="font-medium mb-2">Interview Summary:</h4>
+                <ul className="text-sm text-gray-600 dark:text-gray-400 space-y-1">
+                  <li>• Questions answered: {history.length}</li>
+                  <li>• Interview type: {interviewNum === 1 ? "Mid-course" : "Final"} Assessment</li>
+                  <li>• Module: {moduleId + 1}</li>
+                </ul>
+              </div>
+            </div>
           </CardContent>
           <CardFooter>
             <Button
-              onClick={() => setShowInstructions(false)}
+              onClick={() => router.push(`/roadmap?id=${roadmapId}`)}
               className="bg-purple-600 hover:bg-purple-700"
             >
-              Start Interview
+              Back to Roadmap
             </Button>
           </CardFooter>
         </Card>
@@ -254,95 +611,195 @@ export default function InterviewPage() {
     )
   }
 
-  const currentQuestion = questions[currentQuestionIndex]
-  const currentAnswer = answers[currentQuestionIndex]
+  // Instructions state
+  if (showInstructions) {
+    return (
+      <div className="min-h-screen bg-gray-100 dark:bg-gray-900 p-4 flex items-center justify-center">
+        <Card className="max-w-2xl mx-auto">
+          <CardHeader>
+            <CardTitle>AI Interview Instructions</CardTitle>
+            <CardDescription>
+              Prepare for your {interviewNum === 1 ? "mid-course" : "final"} AI interview
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+              <h4 className="font-medium text-blue-800 dark:text-blue-200 mb-2">Interview Context:</h4>
+              <p className="text-sm text-blue-700 dark:text-blue-300">{interviewContext}</p>
+            </div>
+            
+            <div className="space-y-3">
+              <h4 className="font-medium">How it works:</h4>
+              <ul className="list-disc pl-5 space-y-2 text-sm">
+                <li>The AI interviewer will ask you questions based on the interview context</li>
+                <li>Listen to each question carefully (audio will play automatically)</li>
+                <li>Click "Record Answer" and speak your response clearly</li>
+                <li>The AI will analyze your answer and ask follow-up questions</li>
+                <li>The interview typically lasts 4-5 questions</li>
+                <li>Ensure your microphone is enabled and working properly</li>
+              </ul>
+            </div>
 
+            <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4">
+              <h4 className="font-medium text-amber-800 dark:text-amber-200 mb-2">Tips for success:</h4>
+              <ul className="text-sm text-amber-700 dark:text-amber-300 space-y-1">
+                <li>• Speak clearly and at a moderate pace</li>
+                <li>• Provide detailed, thoughtful answers</li>
+                <li>• Use examples from your learning experience</li>
+                <li>• Don't rush - take time to think before answering</li>
+              </ul>
+            </div>
+          </CardContent>
+          <CardFooter>
+            <Button
+              onClick={() => {
+                setShowInstructions(false)
+                startInterview()
+              }}
+              className="bg-purple-600 hover:bg-purple-700"
+              disabled={isProcessing}
+            >
+              {isProcessing ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Starting Interview...
+                </>
+              ) : (
+                "Start AI Interview"
+              )}
+            </Button>
+          </CardFooter>
+        </Card>
+      </div>
+    )
+  }
+
+  // Main interview interface
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-gray-900 p-4 flex items-center justify-center">
       <Card className="max-w-2xl mx-auto">
         <CardHeader>
-          <CardTitle>Interview - Question {currentQuestionIndex + 1} of {questions.length}</CardTitle>
-          <CardDescription>Module {moduleId}: {questions[0]?.text.split('.')[0]}</CardDescription>
+          <CardTitle>
+            AI Interview {interviewNum} - Question {history.length + 1}
+          </CardTitle>
+          <CardDescription>Module {moduleId + 1}: AI-Powered Assessment</CardDescription>
         </CardHeader>
+        
         <CardContent className="space-y-6">
-          <div className="flex items-center space-x-2">
-            <p className="text-lg font-medium">{currentQuestion.text}</p>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => audioRef.current?.play()}
-              disabled={!audioRef.current}
-            >
-              <Volume2 className="h-4 w-4" />
-            </Button>
-            <audio ref={audioRef} className="hidden" />
-          </div>
-
-          <div className="space-y-2">
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              Attempts used: {currentAnswer.attempts} / 3
-            </p>
-            {currentAnswer.transcript && (
-              <div className="p-4 bg-gray-100 dark:bg-gray-800 rounded-lg">
-                <p className="text-sm font-medium">Your Answer:</p>
-                <p className="text-sm">{currentAnswer.transcript}</p>
+          {/* Current Question Display - Show generic message */}
+          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex-1">
+                <h4 className="font-medium text-blue-800 dark:text-blue-200 mb-2">AI Interviewer:</h4>
+                <p className="text-blue-700 dark:text-blue-300">
+                  {/* Remove the question text, show only instruction */}
+                  Listen carefully to the AI interviewer's question and answer after the audio finishes.
+                </p>
               </div>
-            )}
+              
+              {/* Audio Controls */}
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={playAIResponse}
+                  disabled={isAIPlaying || !aiAudioUrl}
+                  className="text-blue-600 hover:text-blue-700"
+                >
+                  {isAIPlaying ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Volume2 className="h-4 w-4" />
+                  )}
+                </Button>
+              </div>
+            </div>
+            
+            {/* Hidden audio element */}
+            <audio ref={aiAudioRef} className="hidden" />
           </div>
 
-          <div className="flex justify-center items-center space-x-4">
+          {/* Error Display */}
+          {error && (
+            <Alert variant="destructive">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+
+          {/* Recording Controls */}
+          <div className="text-center space-y-4">
             {countdown !== null ? (
-              <p className="text-2xl font-bold">{countdown}</p>
+              <div className="space-y-2">
+                <p className="text-lg font-medium">Get ready to speak in...</p>
+                <p className="text-4xl font-bold text-purple-600">{countdown}</p>
+              </div>
             ) : recording ? (
-              <Button
-                onClick={stopRecording}
-                className="bg-red-600 hover:bg-red-700"
-                disabled={!recording}
-              >
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Stop Recording
-              </Button>
+              <div className="space-y-4">
+                <div className="flex items-center justify-center gap-2">
+                  <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
+                  <p className="text-lg font-medium">Recording your response...</p>
+                </div>
+                <Button
+                  onClick={stopRecording}
+                  className="bg-red-600 hover:bg-red-700"
+                  disabled={!recording}
+                >
+                  <Check className="mr-2 h-4 w-4" />
+                  Done Recording
+                </Button>
+              </div>
+            ) : isProcessing ? (
+              <div className="space-y-2">
+                <Loader2 className="h-8 w-8 animate-spin mx-auto" />
+                <p className="text-lg font-medium">Processing your response...</p>
+              </div>
             ) : (
               <Button
                 onClick={startRecording}
                 className="bg-purple-600 hover:bg-purple-700"
-                disabled={currentAnswer.attempts >= 3}
+                disabled={isAIPlaying || countdown !== null || interviewEnded}
               >
                 <Mic className="mr-2 h-4 w-4" />
                 Record Answer
               </Button>
             )}
           </div>
+
+          {/* Interview Progress */}
+          <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
+            <h4 className="font-medium mb-2">Interview Progress:</h4>
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm">
+                <span>Questions completed</span>
+                <span>{historyRef.current.length}/~5</span>
+              </div>
+              <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                <div 
+                  className="bg-purple-600 h-2 rounded-full transition-all duration-300"
+                  style={{ width: `${Math.min((historyRef.current.length / 5) * 100, 100)}%` }}
+                ></div>
+              </div>
+            </div>
+          </div>
         </CardContent>
+
         <CardFooter className="flex justify-between">
-          <Button
-            variant="outline"
-            onClick={recordAgain}
-            disabled={currentAnswer.attempts >= 3 || !currentAnswer.audioBlob || recording}
-          >
-            <RotateCcw className="mr-2 h-4 w-4" />
-            Record Again
-          </Button>
-          {currentQuestionIndex < questions.length - 1 ? (
+          {!interviewEnded && (
             <Button
-              onClick={nextQuestion}
-              className="bg-purple-600 hover:bg-purple-700"
-              disabled={!currentAnswer.audioBlob || recording}
+              variant="outline"
+              onClick={() => router.push(`/roadmap?id=${roadmapId}`)}
             >
-              Done Recording
+              Exit Interview
             </Button>
-          ) : (
+          )}
+          {interviewEnded && (
             <Button
-              onClick={submitInterview}
-              className="bg-purple-600 hover:bg-purple-700"
-              disabled={!currentAnswer.audioBlob || recording || isSubmitting}
+              onClick={endInterview}
+              className="bg-green-600 hover:bg-green-700"
+              disabled={isProcessing}
             >
-              {isSubmitting ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Check className="mr-2 h-4 w-4" />
-              )}
-              Submit Interview
+              <Check className="mr-2 h-4 w-4" />
+              {isProcessing ? "Submitting..." : "Complete Interview"}
             </Button>
           )}
         </CardFooter>

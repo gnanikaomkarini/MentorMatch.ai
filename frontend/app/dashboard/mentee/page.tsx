@@ -109,11 +109,17 @@ export default function MenteeDashboard() {
               </div>
             </CardContent>
             <CardFooter>
-              <Link href={`/roadmap?id=${dashboard.roadmap_id}`} className="w-full">
-                <Button variant="outline" className="w-full">
-                  View Full Roadmap
-                </Button>
-              </Link>
+              {dashboard.roadmap_id ? (
+                <Link href={`/roadmap?id=${dashboard.roadmap_id}`} className="w-full">
+                  <Button variant="outline" className="w-full">
+                    View Full Roadmap
+                  </Button>
+                </Link>
+              ) : (
+                <div className="text-xs text-gray-500 w-full text-center py-2">
+                  Roadmap not created yet. Go to chat to discuss and create.
+                </div>
+              )}
             </CardFooter>
           </Card>
 
