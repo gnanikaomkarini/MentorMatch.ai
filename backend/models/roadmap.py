@@ -51,6 +51,33 @@ class RoadmapModel:
         )
     
     @staticmethod
+    def set_feedback_interview_1(roadmap_id, feedback):
+        return roadmaps.update_one(
+            {"_id": ObjectId(roadmap_id)},
+            {
+                "$set": {
+                    "interview_feedback_1": feedback,
+                    "updated_at": datetime.utcnow()
+                }
+            }
+        )
+        
+
+    @staticmethod
+    def set_feedback_interview_2(roadmap_id, feedback):
+        return roadmaps.update_one(
+            {"_id": ObjectId(roadmap_id)},
+            {
+                "$set": {
+                    "interview_feedback_2": feedback,
+                    "updated_at": datetime.utcnow()
+                }
+            }
+        )
+        
+
+    
+    @staticmethod
     def set_interview_theme_2(roadmap_id, theme_value):
         return roadmaps.update_one(
             {"_id": ObjectId(roadmap_id)},

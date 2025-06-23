@@ -7,7 +7,7 @@ import re
 from utils.gemini import GeminiLLM
 from utils.roadmap_utils import create_roadmap, edit_roadmap
 from utils.audio_utils import transcribe, tts
-from utils.interview_utils import generate_next_question
+from utils.interview_utils import generate_next_question, fetch_feedback
 
 load_dotenv()
 
@@ -84,3 +84,6 @@ def generate_interview_questions(audio_path, history_json, goal, theme):
     next_question = generate_next_question(theme, history_json, goal)
     tts(next_question)
     return user_answer, next_question
+
+def get_feedback(history_json):
+    return fetch_feedback(history_json)

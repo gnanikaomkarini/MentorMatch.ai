@@ -154,39 +154,47 @@ export default function AIInterviewPage() {
       formData.append('interview_num', interviewNum.toString())
       formData.append('history', '')
 
+      // Print request body
+      console.log("[startInterview] Request Body:")
+      for (let [key, value] of formData.entries()) {
+        console.log(`  ${key}:`, value)
+      }
+
       const response = await fetch('http://localhost:5000/api/ai/interview', {
         method: 'POST',
         credentials: 'include',
         body: formData
       })
 
+      // Print response body (success or error)
+      let responseBody
+      try {
+        responseBody = await response.clone().json()
+        console.log("[startInterview] Response JSON:", responseBody)
+      } catch {
+        responseBody = await response.text()
+        console.log("[startInterview] Response Text:", responseBody)
+      }
+
       if (!response.ok) {
         let errorText = ''
-        try {
-          const errorData = await response.json()
-          errorText = errorData.message || 'Unknown error from server'
-        } catch {
-          const textResponse = await response.text()
-          errorText = textResponse || 'Unknown error from server'
+        if (typeof responseBody === "string") {
+          errorText = responseBody
+        } else {
+          errorText = responseBody?.message || 'Unknown error from server'
         }
         setError(errorText)
         throw new Error('Failed to start interview')
       }
 
-      const data = await response.json()
-      
-      setCurrentQuestion(data.next_question)
+      setCurrentQuestion(responseBody.next_question)
       setAiAudioUrl(`http://localhost:5000/ai-speech.mp3?ts=${Date.now()}&rnd=${Math.random()}`)
       setInterviewStarted(true)
-      
-      // 🔥 Reset both ref and state
       historyRef.current = []
       setHistory([])
-      
       setTimeout(() => {
         playAIResponse()
       }, 500)
-
     } catch (err) {
       setError("Failed to start interview")
     } finally {
@@ -440,13 +448,26 @@ export default function AIInterviewPage() {
       formData.append('interview_num', interviewNum.toString())
       formData.append('history', historyString)
 
-      console.log("🚀 Making POST API call with updated history...")
+      console.log("[processRecording] Request Body:")
+      for (let [key, value] of formData.entries()) {
+        console.log(`  ${key}:`, value)
+      }
 
       const response = await fetch('http://localhost:5000/api/ai/interview', {
         method: 'POST',
         credentials: 'include',
         body: formData
       })
+
+      // Print response body (success or error)
+      let responseBody
+      try {
+        responseBody = await response.clone().json()
+        console.log("[processRecording] Response JSON:", responseBody)
+      } catch {
+        responseBody = await response.text()
+        console.log("[processRecording] Response Text:", responseBody)
+      }
 
       if (!response.ok) {
         throw new Error('Failed to process interview response')
@@ -485,33 +506,31 @@ export default function AIInterviewPage() {
     }
   }
 
-  // End interview
+  // End interview and send feedback to backend
   const endInterview = async () => {
+    setIsProcessing(true)
+    setError("")
     try {
-      // Prepare feedback payload
       const feedbackPayload = {
         roadmap_id: roadmapId,
         interview_num: interviewNum,
         history: historyRef.current, // already in array of {question, answer}
       }
-
-      // Send feedback to backend
       const response = await fetch('http://localhost:5000/api/ai/feedback', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify(feedbackPayload),
       })
-
       if (!response.ok) {
         setError("Failed to submit interview for feedback")
         return
       }
-
-      // Optionally handle response data if needed
       setShowSuccess(true)
     } catch (err) {
       setError("Failed to submit interview for feedback")
+    } finally {
+      setIsProcessing(false)
     }
   }
 
@@ -677,6 +696,7 @@ export default function AIInterviewPage() {
                   Listen carefully to the AI interviewer's question and answer after the audio finishes.
                 </p>
               </div>
+              
               {/* Audio Controls */}
               <div className="flex items-center gap-2">
                 <Button
@@ -694,6 +714,7 @@ export default function AIInterviewPage() {
                 </Button>
               </div>
             </div>
+            
             {/* Hidden audio element */}
             <audio ref={aiAudioRef} className="hidden" />
           </div>
@@ -736,7 +757,7 @@ export default function AIInterviewPage() {
               <Button
                 onClick={startRecording}
                 className="bg-purple-600 hover:bg-purple-700"
-                disabled={isAIPlaying || countdown !== null}
+                disabled={isAIPlaying || countdown !== null || interviewEnded}
               >
                 <Mic className="mr-2 h-4 w-4" />
                 Record Answer
@@ -761,6 +782,7 @@ export default function AIInterviewPage() {
             </div>
           </div>
         </CardContent>
+
         <CardFooter className="flex justify-between">
           {!interviewEnded && (
             <Button
@@ -774,9 +796,10 @@ export default function AIInterviewPage() {
             <Button
               onClick={endInterview}
               className="bg-green-600 hover:bg-green-700"
+              disabled={isProcessing}
             >
               <Check className="mr-2 h-4 w-4" />
-              Complete Interview
+              {isProcessing ? "Submitting..." : "Complete Interview"}
             </Button>
           )}
         </CardFooter>

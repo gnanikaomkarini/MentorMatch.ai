@@ -486,17 +486,6 @@ export default function ChatPage() {
                       >
                         Return to Chat
                       </Button>
-                      <Button 
-                        variant="outline"
-                        onClick={() => {
-                          handleCloseSuccessModal()
-                          // Optional: Navigate to roadmap page
-                          window.open('/roadmap', '_blank')
-                        }}
-                        className="flex-1"
-                      >
-                        View Roadmap
-                      </Button>
                     </div>
                   </div>
                 )}
