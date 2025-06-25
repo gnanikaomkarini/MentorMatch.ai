@@ -89,16 +89,18 @@ Keeps users informed with real-time alerts for new messages, scheduled sessions,
    ```
 
 4. **Set Up Environment Variables**
-   - Create `.env` files in both `frontend/` and `backend/` directories.
+   - Create a `.env` file.
    - Add the following variables (replace with your own keys):
      ```plaintext
-     # frontend/.env
-     NEXT_PUBLIC_GEMINI_API_KEY=your_gemini-api-key
-     NEXT_PUBLIC_ASSEMBLYAI_API_KEY=your-assemblyai-api-key
-     NEXT_PUBLIC_SERPER_API_KEY=your-serper-api-key
+     MONGO_URI=your-mongodb-uri
+     DB_NAME=your-db-name
+     JWT_SECRET_KEY=your-jwt-secret
 
-     # backend/.env
-     MONGODB_URI=your-mongodb-uri
+     FLASK_DEBUG=True
+     SECRET_KEY=your-secret-key
+     PORT=your-port
+     FRONTEND_URL=your-frontend-url
+
      GEMINI_API_KEY=your_gemini-api-key
      ASSEMBLYAI_API_KEY=your-assemblyai-api-key
      SERPER_API_KEY=your-serper-api-key
@@ -114,7 +116,7 @@ Keeps users informed with real-time alerts for new messages, scheduled sessions,
      ```bash
      cd ../backend
      source .venv/bin/activate
-     flask --app app run
+     python app.py
      ```
    - Open your browser and navigate to `http://localhost:3000` to access the frontend of the app.
    - The backend runs on `http://localhost:5000` by default.
