@@ -628,3 +628,92 @@ def request_roadmap(current_user):
         return jsonify({'message': 'Roadmap request sent'}), 200
     except:
         return jsonify({'message': 'Invalid mentor ID'}), 400
+
+# --- POST: Mentee gives feedback about Mentor ---
+@roadmap_bp.route('/<roadmap_id>/feedback/mentor', methods=['POST'])
+@token_required
+def mentee_give_feedback(current_user, roadmap_id):
+    """Mentee gives feedback about mentor"""
+    data = request.get_json()
+    rating = data.get('rating')
+    text = data.get('text')
+    if not rating or not text:
+        return jsonify({'message': 'Rating and text are required'}), 400
+
+    roadmap = roadmaps.find_one({'_id': ObjectId(roadmap_id)})
+    if not roadmap:
+        return jsonify({'message': 'Roadmap not found'}), 404
+
+    mentee_id = str(roadmap.get('mentee_id', roadmap.get('menteeId')))
+    if str(current_user['_id']) != mentee_id or current_user['role'] != 'mentee':
+        return jsonify({'message': 'Only the mentee can give feedback about the mentor'}), 403
+
+    feedback_obj = {
+        'rating': rating,
+        'text': text,
+        'created_at': datetime.datetime.utcnow()
+    }
+    RoadmapModel.set_mentor_feedback(roadmap_id, feedback_obj)
+    return jsonify({'message': 'Feedback submitted'}), 200
+
+# --- POST: Mentor gives feedback about Mentee ---
+@roadmap_bp.route('/<roadmap_id>/feedback/mentee', methods=['POST'])
+@token_required
+def mentor_give_feedback(current_user, roadmap_id):
+    """Mentor gives feedback about mentee"""
+    roadmap = roadmaps.find_one({'_id': ObjectId(roadmap_id)})
+    if not roadmap:
+        return jsonify({'message': 'Roadmap not found'}), 404
+
+    mentee_id = str(roadmap.get('mentee_id', roadmap.get('menteeId')))
+    # If not the mentee, must be the mentor
+    if str(current_user['_id']) == mentee_id and current_user['role'] == 'mentee':
+        return jsonify({'message': 'Only the mentor can give feedback about the mentee'}), 403
+
+    data = request.get_json()
+    rating = data.get('rating')
+    text = data.get('text')
+    if not rating or not text:
+        return jsonify({'message': 'Rating and text are required'}), 400
+
+    feedback_obj = {
+        'rating': rating,
+        'text': text,
+        'created_at': datetime.datetime.utcnow()
+    }
+    RoadmapModel.set_mentee_feedback(roadmap_id, feedback_obj)
+    return jsonify({'message': 'Feedback submitted'}), 200
+
+# --- GET: Feedback about the mentor (what the mentee wrote) ---
+@roadmap_bp.route('/<roadmap_id>/feedback/mentor', methods=['GET'])
+@token_required
+def get_feedback_about_mentor(current_user, roadmap_id):
+    """Get feedback about the mentor (mentee's feedback)"""
+    roadmap = roadmaps.find_one({'_id': ObjectId(roadmap_id)})
+    if not roadmap:
+        return jsonify({'message': 'Roadmap not found'}), 404
+
+    mentee_id = str(roadmap.get('mentee_id', roadmap.get('menteeId')))
+    user_id = str(current_user['_id'])
+    if user_id != mentee_id and current_user['role'] != 'mentor':
+        return jsonify({'message': 'Unauthorized'}), 403
+
+    feedback = roadmap.get('feedback', {}).get('mentee_to_mentor')
+    return jsonify({'feedback': feedback}), 200
+
+# --- GET: Feedback about the mentee (what the mentor wrote) ---
+@roadmap_bp.route('/<roadmap_id>/feedback/mentee', methods=['GET'])
+@token_required
+def get_feedback_about_mentee(current_user, roadmap_id):
+    """Get feedback about the mentee (mentor's feedback)"""
+    roadmap = roadmaps.find_one({'_id': ObjectId(roadmap_id)})
+    if not roadmap:
+        return jsonify({'message': 'Roadmap not found'}), 404
+
+    mentee_id = str(roadmap.get('mentee_id', roadmap.get('menteeId')))
+    user_id = str(current_user['_id'])
+    if user_id != mentee_id and current_user['role'] != 'mentor':
+        return jsonify({'message': 'Unauthorized'}), 403
+
+    feedback = roadmap.get('feedback', {}).get('mentor_to_mentee')
+    return jsonify({'feedback': feedback}), 200
