@@ -219,7 +219,7 @@ export default function ChatPage() {
     
     pollingRef.current = setInterval(() => {
       fetchMessages(selectedUser.id, 1, true)
-    }, 15000)
+    }, 1000)
     
     return () => {
       if (pollingRef.current) {
