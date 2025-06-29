@@ -12,7 +12,7 @@ import {
   CardHeader,
   CardTitle
 } from "@/components/ui/card"
-import { Calendar, Clock, MessageSquare, BarChart, ChevronLeft, ChevronRight } from "lucide-react"
+import { Calendar, Clock, MessageSquare, BarChart, ChevronLeft, ChevronRight, Star } from "lucide-react"
 import Link from "next/link"
 import { useState, useRef, useEffect } from "react"
 
@@ -161,6 +161,9 @@ export default function MentorDashboard() {
                     </Button>
                   </Link>
                 </CardFooter>
+
+                {/* Feedback Section */}
+                <MenteeFeedbackSection mentee={mentee} />
               </Card>
             ))}
           </div>
@@ -251,5 +254,126 @@ export default function MentorDashboard() {
         }
       `}</style>
     </DashboardLayout>
+  )
+}
+
+function MenteeFeedbackSection({ mentee }) {
+  const [menteeFeedback, setMenteeFeedback] = useState<any>(null)
+  const [myFeedback, setMyFeedback] = useState<any>(null)
+  const [showFeedbackForm, setShowFeedbackForm] = useState(false)
+  const [rating, setRating] = useState(0)
+  const [text, setText] = useState("")
+  const [submitting, setSubmitting] = useState(false)
+
+  useEffect(() => {
+    if (mentee.roadmap_id && mentee.progress === 100) {
+      // Mentee's feedback about you (mentor)
+      fetch(
+        `http://localhost:5000/api/roadmaps/${mentee.roadmap_id}/feedback/mentor`,
+        { credentials: "include" }
+      )
+        .then((res) => res.json())
+        .then((data) => setMenteeFeedback(data.feedback))
+
+      // Your feedback about the mentee
+      fetch(
+        `http://localhost:5000/api/roadmaps/${mentee.roadmap_id}/feedback/mentee`,
+        { credentials: "include" }
+      )
+        .then((res) => res.json())
+        .then((data) => setMyFeedback(data.feedback))
+    }
+  }, [mentee.roadmap_id, mentee.progress])
+
+  if (mentee.progress !== 100 || !mentee.roadmap_id) return null
+
+  return (
+    <div className="mt-4 space-y-2">
+      {/* Show feedback from mentee */}
+      {menteeFeedback ? (
+        <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+          <div className="font-semibold text-green-800 mb-1">Mentee's Feedback for You:</div>
+          <div className="flex items-center mb-1">
+            {[1,2,3,4,5].map(i => (
+              <Star key={i} className={`h-4 w-4 ${i <= menteeFeedback.rating ? "text-yellow-500" : "text-gray-300"}`} />
+            ))}
+          </div>
+          <div className="text-sm text-green-900 whitespace-pre-line">{menteeFeedback.text}</div>
+        </div>
+      ) : (
+        <div className="text-blue-700 text-sm">
+          Mentee has not given feedback yet. Please remind your mentee to submit feedback!
+        </div>
+      )}
+
+      {/* Give feedback about mentee */}
+      {myFeedback ? (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+          <div className="font-semibold text-blue-800 mb-1">Your Feedback for Mentee:</div>
+          <div className="flex items-center mb-1">
+            {[1,2,3,4,5].map(i => (
+              <Star key={i} className={`h-4 w-4 ${i <= myFeedback.rating ? "text-yellow-500" : "text-gray-300"}`} />
+            ))}
+          </div>
+          <div className="text-sm text-blue-900 whitespace-pre-line">{myFeedback.text}</div>
+        </div>
+      ) : (
+        <div>
+          <div className="text-blue-700 text-sm mb-2">
+            You have not given feedback for your mentee yet.
+          </div>
+          {!showFeedbackForm ? (
+            <Button onClick={() => setShowFeedbackForm(true)} size="sm">
+              Give Feedback to Mentee
+            </Button>
+          ) : (
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault()
+                setSubmitting(true)
+                await fetch(
+                  `http://localhost:5000/api/roadmaps/${mentee.roadmap_id}/feedback/mentee`,
+                  {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    credentials: "include",
+                    body: JSON.stringify({ rating, text }),
+                  }
+                )
+                setSubmitting(false)
+                setShowFeedbackForm(false)
+                setMyFeedback({ rating, text })
+              }}
+              className="space-y-2 mt-2"
+            >
+              <div className="flex items-center gap-1">
+                {[1,2,3,4,5].map(i => (
+                  <button
+                    type="button"
+                    key={i}
+                    onClick={() => setRating(i)}
+                    className="focus:outline-none"
+                  >
+                    <Star className={`h-6 w-6 ${i <= rating ? "text-yellow-500" : "text-gray-300"}`} />
+                  </button>
+                ))}
+                <span className="ml-2 text-sm">{rating ? `${rating} Star${rating > 1 ? "s" : ""}` : ""}</span>
+              </div>
+              <textarea
+                className="w-full border rounded p-2"
+                rows={3}
+                placeholder="Write your feedback..."
+                value={text}
+                onChange={e => setText(e.target.value)}
+                required
+              />
+              <Button type="submit" size="sm" disabled={submitting || !rating || !text}>
+                {submitting ? "Submitting..." : "Submit Feedback"}
+              </Button>
+            </form>
+          )}
+        </div>
+      )}
+    </div>
   )
 }

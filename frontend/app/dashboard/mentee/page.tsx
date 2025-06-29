@@ -13,7 +13,7 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
-import { Calendar, Clock } from "lucide-react"
+import { Calendar, Clock, Star } from "lucide-react"
 import Link from "next/link"
 import { useEffect, useState } from "react"
 
@@ -21,6 +21,12 @@ export default function MenteeDashboard() {
   const [dashboard, setDashboard] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
+  const [mentorFeedback, setMentorFeedback] = useState<any>(null)
+  const [myFeedback, setMyFeedback] = useState<any>(null)
+  const [showFeedbackForm, setShowFeedbackForm] = useState(false)
+  const [rating, setRating] = useState(0)
+  const [text, setText] = useState("")
+  const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
     const fetchDashboard = async () => {
@@ -45,6 +51,26 @@ export default function MenteeDashboard() {
     }
     fetchDashboard()
   }, [])
+
+  useEffect(() => {
+    if (dashboard && dashboard.roadmap_id && dashboard.progress === 100) {
+      // Mentor's feedback about you (mentee)
+      fetch(
+        `http://localhost:5000/api/roadmaps/${dashboard.roadmap_id}/feedback/mentee`,
+        { credentials: "include" }
+      )
+        .then((res) => res.json())
+        .then((data) => setMentorFeedback(data.feedback))
+
+      // Your feedback about the mentor
+      fetch(
+        `http://localhost:5000/api/roadmaps/${dashboard.roadmap_id}/feedback/mentor`,
+        { credentials: "include" }
+      )
+        .then((res) => res.json())
+        .then((data) => setMyFeedback(data.feedback))
+    }
+  }, [dashboard])
 
   if (loading) return <div className="p-8">Loading...</div>
   if (error) return <div className="p-8 text-red-500">{error}</div>
@@ -110,7 +136,10 @@ export default function MenteeDashboard() {
             </CardContent>
             <CardFooter>
               {dashboard.roadmap_id ? (
-                <Link href={`/roadmap?id=${dashboard.roadmap_id}`} className="w-full">
+                <Link
+                  href={`/roadmap?id=${dashboard.roadmap_id}`}
+                  className="w-full"
+                >
                   <Button variant="outline" className="w-full">
                     View Full Roadmap
                   </Button>
@@ -196,10 +225,144 @@ export default function MenteeDashboard() {
           </CardContent>
           <CardFooter>
             <Link href="/chat" className="w-full">
-              <Button variant="outline" className="w-full">Open Chat</Button>
+              <Button variant="outline" className="w-full">
+                Open Chat
+              </Button>
             </Link>
           </CardFooter>
         </Card>
+
+        {/* Feedback Section - Shown only when roadmap is complete */}
+        {dashboard.progress === 100 && dashboard.roadmap_id && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Feedback</CardTitle>
+              <CardDescription>
+                Feedback between you and your mentor
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="mt-4 space-y-2">
+                {/* Show feedback from mentor */}
+                {mentorFeedback ? (
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                    <div className="font-semibold text-green-800 mb-1">
+                      Mentor's Feedback for You:
+                    </div>
+                    <div className="flex items-center mb-1">
+                      {[1, 2, 3, 4, 5].map((i) => (
+                        <Star
+                          key={i}
+                          className={`h-4 w-4 ${
+                            i <= mentorFeedback.rating
+                              ? "text-yellow-500"
+                              : "text-gray-300"
+                          }`}
+                        />
+                      ))}
+                    </div>
+                    <div className="text-sm text-green-900 whitespace-pre-line">
+                      {mentorFeedback.text}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-blue-700 text-sm">
+                    Mentor has not given feedback yet. Please remind your mentor to
+                    submit feedback!
+                  </div>
+                )}
+
+                {/* Give feedback about mentor */}
+                {myFeedback ? (
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                    <div className="font-semibold text-blue-800 mb-1">
+                      Your Feedback for Mentor:
+                    </div>
+                    <div className="flex items-center mb-1">
+                      {[1, 2, 3, 4, 5].map((i) => (
+                        <Star
+                          key={i}
+                          className={`h-4 w-4 ${
+                            i <= myFeedback.rating ? "text-yellow-500" : "text-gray-300"
+                          }`}
+                        />
+                      ))}
+                    </div>
+                    <div className="text-sm text-blue-900 whitespace-pre-line">
+                      {myFeedback.text}
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <div className="text-blue-700 text-sm mb-2">
+                      You have not given feedback for your mentor yet.
+                    </div>
+                    {!showFeedbackForm ? (
+                      <Button onClick={() => setShowFeedbackForm(true)} size="sm">
+                        Give Feedback to Mentor
+                      </Button>
+                    ) : (
+                      <form
+                        onSubmit={async (e) => {
+                          e.preventDefault()
+                          setSubmitting(true)
+                          await fetch(
+                            `http://localhost:5000/api/roadmaps/${dashboard.roadmap_id}/feedback/mentor`,
+                            {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              credentials: "include",
+                              body: JSON.stringify({ rating, text }),
+                            }
+                          )
+                          setSubmitting(false)
+                          setShowFeedbackForm(false)
+                          setMyFeedback({ rating, text })
+                        }}
+                        className="space-y-2 mt-2"
+                      >
+                        <div className="flex items-center gap-1">
+                          {[1, 2, 3, 4, 5].map((i) => (
+                            <button
+                              type="button"
+                              key={i}
+                              onClick={() => setRating(i)}
+                              className="focus:outline-none"
+                            >
+                              <Star
+                                className={`h-6 w-6 ${
+                                  i <= rating ? "text-yellow-500" : "text-gray-300"
+                                }`}
+                              />
+                            </button>
+                          ))}
+                          <span className="ml-2 text-sm">
+                            {rating ? `${rating} Star${rating > 1 ? "s" : ""}` : ""}
+                          </span>
+                        </div>
+                        <textarea
+                          className="w-full border rounded p-2"
+                          rows={3}
+                          placeholder="Write your feedback..."
+                          value={text}
+                          onChange={(e) => setText(e.target.value)}
+                          required
+                        />
+                        <Button
+                          type="submit"
+                          size="sm"
+                          disabled={submitting || !rating || !text}
+                        >
+                          {submitting ? "Submitting..." : "Submit Feedback"}
+                        </Button>
+                      </form>
+                    )}
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </DashboardLayout>
   )
