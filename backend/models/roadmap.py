@@ -139,3 +139,25 @@ class RoadmapModel:
         except Exception as e:
             print(f"Error fetching roadmap: {e}")
             return None
+    
+    @staticmethod
+    def set_mentee_feedback(roadmap_id, feedback):
+        """Mentor gives feedback about mentee"""
+        return roadmaps.update_one(
+            {"_id": ObjectId(roadmap_id)},
+            {"$set": {
+                "feedback.mentor_to_mentee": feedback,
+                "updated_at": datetime.utcnow()
+            }}
+        )
+
+    @staticmethod
+    def set_mentor_feedback(roadmap_id, feedback):
+        """Mentee gives feedback about mentor"""
+        return roadmaps.update_one(
+            {"_id": ObjectId(roadmap_id)},
+            {"$set": {
+                "feedback.mentee_to_mentor": feedback,
+                "updated_at": datetime.utcnow()
+            }}
+        )
