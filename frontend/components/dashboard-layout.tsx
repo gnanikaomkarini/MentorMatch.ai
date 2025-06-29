@@ -17,16 +17,21 @@ interface DashboardLayoutProps {
   userRole: "mentee" | "mentor"
   userName: string
   userEmail: string
+  roadmapId?: string
 }
 
-export default function DashboardLayout({ children, userRole, userName, userEmail }: DashboardLayoutProps) {
+export default function DashboardLayout({ children, userRole, userName, userEmail, roadmapId }: DashboardLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const pathname = usePathname()
   const router = useRouter()
 
   const menteeNavItems = [
     { name: "Dashboard", href: "/dashboard/mentee", icon: <Home className="h-5 w-5" /> },
-    { name: "Roadmap", href: "/roadmap", icon: <BarChart className="h-5 w-5" /> },
+    {
+      name: "Roadmap",
+      href: roadmapId ? `/roadmap?id=${roadmapId}` : "/roadmap",
+      icon: <BarChart className="h-5 w-5" />,
+    },
     { name: "Chat", href: "/chat", icon: <MessageSquare className="h-5 w-5" /> },
     { name: "Schedule", href: "/schedule", icon: <Calendar className="h-5 w-5" /> },
   ]

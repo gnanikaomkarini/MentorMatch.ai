@@ -81,6 +81,7 @@ export default function MenteeDashboard() {
       userRole="mentee"
       userName={dashboard.user?.name || ""}
       userEmail={dashboard.user?.email || ""}
+      roadmapId={dashboard.roadmap_id} // <-- add this prop
     >
       <div className="space-y-6">
         {/* User Profile */}
