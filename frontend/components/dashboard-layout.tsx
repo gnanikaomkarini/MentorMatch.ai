@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
@@ -20,8 +20,9 @@ interface DashboardLayoutProps {
   roadmapId?: string
 }
 
-export default function DashboardLayout({ children, userRole, userName, userEmail, roadmapId }: DashboardLayoutProps) {
+export default function DashboardLayout({ children, userRole, userName, userEmail, roadmapId: initialRoadmapId }: DashboardLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [roadmapId, setRoadmapId] = useState(initialRoadmapId)
   const pathname = usePathname()
   const router = useRouter()
 
@@ -59,6 +60,16 @@ export default function DashboardLayout({ children, userRole, userName, userEmai
       router.push("/login") // Or "/" if you want
     }
   }
+
+  useEffect(() => {
+    if (userRole === "mentee" && !roadmapId) {
+      fetch("http://localhost:5000/api/roadmaps/roadmap-id", { credentials: "include" })
+        .then(res => res.json())
+        .then(data => {
+          if (data.roadmap_id) setRoadmapId(data.roadmap_id)
+        })
+    }
+  }, [userRole, roadmapId])
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
