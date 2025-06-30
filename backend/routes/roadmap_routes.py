@@ -717,3 +717,24 @@ def get_feedback_about_mentee(current_user, roadmap_id):
 
     feedback = roadmap.get('feedback', {}).get('mentor_to_mentee')
     return jsonify({'feedback': feedback}), 200
+
+@roadmap_bp.route('/roadmap-id', methods=['GET'])
+@token_required
+def get_roadmap_id(current_user):
+    """Return the active roadmap id for the current user (mentee only)"""
+    user_id = str(current_user['_id'])
+    role = current_user['role']
+    if role != 'mentee':
+        return jsonify({'roadmap_id': None}), 200
+
+    roadmap = roadmaps.find_one({
+        '$or': [
+            {'mentee_id': user_id},
+            {'menteeId': user_id},
+            {'menteeId': ObjectId(user_id)}
+        ],
+        'status': {'$in': ['active', 'in-progress']}
+    })
+    if roadmap:
+        return jsonify({'roadmap_id': str(roadmap['_id'])}), 200
+    return jsonify({'roadmap_id': None}), 200
