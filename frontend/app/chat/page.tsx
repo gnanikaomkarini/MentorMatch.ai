@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef, useEffect, useCallback } from "react"
+import { useRef, useState, useEffect, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -41,18 +41,21 @@ export default function ChatPage() {
   const [isFetchingMore, setIsFetchingMore] = useState(false)
   const [isGeneratingRoadmap, setIsGeneratingRoadmap] = useState(false)
   const [roadmapGenerated, setRoadmapGenerated] = useState(false)
+  const [showAIMention, setShowAIMention] = useState(false)
+  const [mentionIndex, setMentionIndex] = useState(0)
   
   // Refs
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const chatContainerRef = useRef<HTMLDivElement>(null)
   const pollingRef = useRef<NodeJS.Timeout | null>(null)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   // Prevent hydration mismatch
   useEffect(() => {
     setHasMounted(true)
   }, [])
 
-  // Fetch user profile and initialize chat
+  // Fetcch user profile and initialize chat
   useEffect(() => {
     const fetchProfile = async () => {
       try {
@@ -410,6 +413,56 @@ export default function ChatPage() {
     setRoadmapGenerated(false)
   }
 
+  // Handle mention trigger
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const val = e.target.value
+    setMessage(val)
+    // Show mention if last char is '@' and not already present
+    if (val.endsWith("@") && !val.includes("@AI Assistant")) {
+      setShowAIMention(true)
+    } else {
+      setShowAIMention(false)
+    }
+  }
+
+  // Handle mention selection with keyboard
+  const handleMentionKeyDown = (e: React.KeyboardEvent) => {
+    if (showAIMention) {
+      if (e.key === "Enter" || e.key === "Tab") {
+        e.preventDefault()
+        insertAIAssistantMention()
+      } else if (e.key === "Escape") {
+        setShowAIMention(false)
+      }
+    } else {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault()
+        handleSendMessage()
+      }
+    }
+  }
+
+  // Insert @AI Assistant at cursor
+  const insertAIAssistantMention = () => {
+    if (!textareaRef.current) return
+    const textarea = textareaRef.current
+    const start = textarea.selectionStart
+    const end = textarea.selectionEnd
+    const value = message
+    // Replace last '@' with '@AI Assistant'
+    const atIdx = value.lastIndexOf("@")
+    const newValue =
+      value.substring(0, atIdx) + "@AI Assistant " + value.substring(end)
+    setMessage(newValue)
+    setShowAIMention(false)
+    // Move cursor after inserted mention
+    setTimeout(() => {
+      textarea.focus()
+      textarea.selectionStart = textarea.selectionEnd =
+        atIdx + "@AI Assistant ".length
+    }, 0)
+  }
+
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault()
@@ -653,19 +706,37 @@ export default function ChatPage() {
                   <PaperclipIcon className="h-4 w-4" />
                 </Button>
 
-                <Textarea
-                  placeholder={
-                    selectedUser 
-                      ? `Message ${selectedUser.name}...` 
-                      : "Select a user to start chatting"
-                  }
-                  value={message}
-                  onChange={(e) => setMessage(e.target.value)}
-                  onKeyDown={handleKeyPress}
-                  className="min-h-10 flex-1 resize-none"
-                  rows={1}
-                  disabled={!selectedUser}
-                />
+                <div className="relative flex-1">
+                  <Textarea
+                    ref={textareaRef}
+                    placeholder={
+                      selectedUser 
+                        ? `Message ${selectedUser.name}...` 
+                        : "Select a user to start chatting"
+                    }
+                    value={message}
+                    onChange={handleInputChange}
+                    onKeyDown={handleMentionKeyDown}
+                    className="min-h-10 flex-1 resize-none"
+                    rows={1}
+                    disabled={!selectedUser}
+                  />
+                  {showAIMention && (
+                    <div className="absolute left-2 bottom-12 z-50 bg-white dark:bg-gray-900 border rounded shadow p-2 w-48">
+                      <div
+                        className="flex items-center gap-2 cursor-pointer hover:bg-purple-100 dark:hover:bg-purple-900 rounded px-2 py-1"
+                        onMouseDown={e => {
+                          e.preventDefault()
+                          insertAIAssistantMention()
+                        }}
+                      >
+                        <Sparkles className="h-4 w-4 text-purple-500" />
+                        <span className="font-semibold">@AI Assistant</span>
+                        <span className="ml-auto text-xs text-gray-400">↵</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
 
                 <Button
                   className="bg-[#9290C3] hover:bg-[#7B68EE] shrink-0"
