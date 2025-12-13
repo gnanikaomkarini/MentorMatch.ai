@@ -70,7 +70,7 @@ Keeps users informed with real-time alerts for new messages, scheduled sessions,
 
 1. **Clone the Repository**
    ```bash
-   git clone https://github.com/your-username/mentormatch.ai.git
+   git clone https://github.com/gnanikaomkarini/mentormatch.ai.git
    cd mentormatch.ai
    ```
 
